@@ -1,22 +1,134 @@
-
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Chrono Dataset Engine</title>
-<style>
-body { margin:0; background:#05070f; color:white; overflow:hidden; }
-canvas { display:block; }
-#modal {
- position:fixed; bottom:0; left:0; right:0;
- background:#111; padding:15px; display:none;
- max-height:50%; overflow:auto;
-}
-</style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Chronology of Life — an interactive timeline from the Big Bang to the Heat Death of the universe">
+  <title>Chrono of Life</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    body {
+      margin: 0; padding: 0;
+      background: #05070f;
+      overflow: hidden;
+      font-family: system-ui, -apple-system, sans-serif;
+    }
+    canvas {
+      display: block;
+      cursor: grab;
+      touch-action: none;
+    }
+    canvas:active { cursor: grabbing; }
+
+    /* ── Detail panel ─────────────────────────────────────────────────── */
+    #panel {
+      display: none;
+      position: fixed;
+      z-index: 100;
+      background: #1a1f2e;
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 12px;
+      padding: 16px;
+      color: #e8eaf6;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.7);
+      max-height: 80vh;
+      overflow-y: auto;
+      width: 340px;
+    }
+    @media (max-width: 600px) {
+      #panel {
+        left: 0 !important; right: 0 !important; bottom: 0 !important;
+        top: auto !important; width: 100% !important;
+        border-radius: 16px 16px 0 0;
+        max-height: 55vh;
+      }
+    }
+    #panel-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 8px;
+    }
+    #panel-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: #fff;
+      margin: 0;
+      flex: 1;
+      padding-right: 8px;
+    }
+    #panel-close {
+      background: none;
+      border: none;
+      color: rgba(255,255,255,0.5);
+      cursor: pointer;
+      font-size: 18px;
+      padding: 0 4px;
+      line-height: 1;
+      min-width: 32px;
+      min-height: 32px;
+    }
+    #panel-close:hover { color: #fff; }
+    #panel-body {
+      font-size: 13px;
+      line-height: 1.6;
+      color: #b0bec5;
+    }
+    #panel-body img {
+      width: 100%;
+      max-height: 120px;
+      object-fit: cover;
+      border-radius: 8px;
+      margin-bottom: 10px;
+    }
+    #panel-body p { margin: 0 0 8px; }
+    #panel-link {
+      display: none;
+      color: #64b5f6;
+      font-size: 12px;
+      font-weight: 600;
+      text-decoration: none;
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px solid rgba(255,255,255,0.1);
+      display: block;
+    }
+    #panel-link:hover { text-decoration: underline; }
+
+    /* ── Loading indicator ────────────────────────────────────────────── */
+    #loading {
+      position: fixed;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      color: rgba(255,255,255,0.5);
+      font-size: 14px;
+      pointer-events: none;
+    }
+  </style>
 </head>
 <body>
-<canvas id="c"></canvas>
-<div id="modal"></div>
-<script src="engine.js"></script>
+  <canvas id="c"></canvas>
+
+  <div id="panel">
+    <div id="panel-header">
+      <h2 id="panel-title"></h2>
+      <button id="panel-close" aria-label="Close">✕</button>
+    </div>
+    <div id="panel-body"></div>
+    <a id="panel-link" target="_blank" rel="noopener noreferrer">Read more on Wikipedia ↗</a>
+  </div>
+
+  <div id="loading">Loading timeline data…</div>
+
+  <script src="engine.js"></script>
+  <script>
+    // Hide loading indicator once data is loaded
+    // engine.js calls resetView() after data loads which triggers draw()
+    // We hook into that by checking after a short delay
+    setTimeout(() => {
+      const loading = document.getElementById('loading');
+      if (loading) loading.style.display = 'none';
+    }, 3000);
+  </script>
 </body>
 </html>

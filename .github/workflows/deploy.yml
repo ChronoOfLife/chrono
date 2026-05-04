@@ -25,27 +25,37 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Parse phase documents → events.json
-        run: npm run parse-phases
+      - name: Parse phase documents → events.json / data.json
+        run: |
+          npm run parse-phases
+          cp src/lib/data/events.json data.json
 
       - name: Run property-based tests
         run: npm run test:run
 
-      - name: Build SvelteKit static site
-        run: npm run build
-        env:
-          NODE_ENV: production
+      - name: Prepare static site
+        run: |
+          mkdir -p dist
+          cp index.html dist/index.html
+          cp engine.js dist/engine.js
+          cp data.json dist/data.json
+          cp static/favicon.png dist/favicon.png
+          # Create 404.html that redirects to index
+          cp index.html dist/404.html
+          # Required for GitHub Pages to serve _app assets without Jekyll processing
+          touch dist/.nojekyll
 
       - name: Verify build output
         run: |
-          test -f build/index.html && echo "✓ index.html exists"
-          test -f build/404.html && echo "✓ 404.html exists"
-          test -f build/favicon.png && echo "✓ favicon.png exists"
+          test -f dist/index.html && echo "✓ index.html exists"
+          test -f dist/engine.js  && echo "✓ engine.js exists"
+          test -f dist/data.json  && echo "✓ data.json exists"
+          python3 -c "import json; d=json.load(open('dist/data.json')); print(f'✓ {len(d)} events in data.json')"
 
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./build
+          publish_dir: ./dist
           publish_branch: gh-pages
           force_orphan: true

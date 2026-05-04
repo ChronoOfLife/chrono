@@ -82,30 +82,39 @@ describe('Property 2: Malformed Event Skipping', () => {
   });
 });
 
-// ── Property 3: Logarithmic Axis Monotonicity ─────────────────────────────────
+// ── Property 3: Axis Monotonicity ─────────────────────────────────────────────
 
-describe('Property 3: Logarithmic Axis Monotonicity', () => {
-  it('|tx(a)| < |tx(b)| whenever |a| < |b| (both non-zero, with sufficient gap)', () => {
+describe('Property 3: Axis Monotonicity', () => {
+  it('tx(a) < tx(b) whenever a < b (strictly increasing)', () => {
     fc.assert(fc.property(
-      fc.double({ min: 1, max: 1e12, noNaN: true }),
-      fc.double({ min: 1, max: 1e12, noNaN: true }),
+      fc.double({ min: -13.8e9, max: 1e14, noNaN: true }),
+      fc.double({ min: -13.8e9, max: 1e14, noNaN: true }),
       (a, b) => {
-        // Require a meaningful relative difference to avoid floating-point equality
-        fc.pre(Math.abs(b) > Math.abs(a) * 1.001 + 1);
-        expect(Math.abs(tx(a))).toBeLessThan(Math.abs(tx(b)));
+        // Require a meaningful gap to avoid floating-point equality at zone boundaries
+        fc.pre(b > a + 1);
+        expect(tx(a)).toBeLessThan(tx(b));
       }
     ), { numRuns: 200 });
   });
 });
 
-// ── Property 4: Logarithmic Axis Round-Trip ───────────────────────────────────
+// ── Property 4: Axis Round-Trip ───────────────────────────────────────────────
 
-describe('Property 4: Logarithmic Axis Round-Trip', () => {
+describe('Property 4: Axis Round-Trip', () => {
   it('txInverse(tx(t)) ≈ t within floating-point tolerance', () => {
-    fc.assert(fc.property(arbTime, (t) => {
+    // Zone 11 (1e9 to 1e100) maps ~1e100 years to 300px, so values near the
+    // zone start (e.g. t=1e9+1e5) lose precision — the pixel delta is sub-float.
+    // We test round-trip accuracy only for times within the "precise" zones
+    // (up to 1e9 years), where the axis has meaningful sub-pixel resolution.
+    const arbPreciseTime = fc.oneof(
+      fc.double({ min: -13.8e9, max: -1, noNaN: true }),
+      fc.constant(0),
+      fc.double({ min: 1, max: 1e9, noNaN: true }),
+    );
+    fc.assert(fc.property(arbPreciseTime, (t) => {
       const roundTripped = txInverse(tx(t));
       const relError = Math.abs(roundTripped - t) / (Math.abs(t) + 1);
-      expect(relError).toBeLessThan(1e-6);
+      expect(relError).toBeLessThan(1e-9);
     }), { numRuns: 200 });
   });
 });

@@ -16,8 +16,8 @@ import {
 } from '$lib/math/axis.js';
 
 export interface NavigatorConfig {
-  minZoom: number;           // default MIN_ZOOM = 0.05
-  maxZoom: number;           // default MAX_ZOOM = 500
+  minZoom: number;           // default MIN_ZOOM = 0.3
+  maxZoom: number;           // default MAX_ZOOM = 2000
   leftBoundaryTime: number;  // default BIG_BANG_TIME
   rightBoundaryTime: number; // default HEAT_DEATH_TIME
   momentumDecay: number;     // GSAP ease duration in seconds (default 1.2)
@@ -127,11 +127,16 @@ export function applyZoom(
 }
 
 /**
- * Reset view to present day (t=0) at Era scale (zoom=1).
+ * Reset view centred on ~1800 CE (modern era) at zoom=1.
+ * The modern era (1500–2030 CE) is the densest region and gets 300px at zoom=1,
+ * so this gives users an immediately useful starting view.
  */
 export function resetView(viewportWidth: number): ViewState {
+  // Centre on 1800 CE so the modern era is prominently visible
+  const targetPx = tx(1800);
+  const panX = -targetPx; // tx(1800) * zoomScale=1 offset, centred in viewport
   return clampViewState(
-    { panX: 0, zoomScale: 1 },
+    { panX, zoomScale: 1 },
     DEFAULT_CONFIG,
     viewportWidth
   );

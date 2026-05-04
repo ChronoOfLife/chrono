@@ -4,7 +4,7 @@
 
   import type { ChronoEvent } from '$lib/data/types.js';
   import type { ViewState } from '$lib/math/axis.js';
-  import { screenX, txInverse } from '$lib/math/axis.js';
+  import { screenX, txInverse, tx } from '$lib/math/axis.js';
   import { computeRowLayout, getScaleLevel, getRowEntry, ROW_DEFINITIONS } from '$lib/layout/rows.js';
   import { createNavigator } from '$lib/navigator/gsap-observer.js';
   import { resetView, centreTimeFromState } from '$lib/navigator/navigator.js';
@@ -26,7 +26,8 @@
   let isMobile = false;
 
   // ── Navigation state ───────────────────────────────────────────────────────
-  let viewState: ViewState = { panX: 0, zoomScale: 1 };
+  // Start centred on ~1800 CE (modern era) at zoom=1
+  let viewState: ViewState = { panX: -tx(1800), zoomScale: 1 };
 
   // ── UI state ───────────────────────────────────────────────────────────────
   let indiaFilterActive = false;

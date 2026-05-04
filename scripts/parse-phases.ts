@@ -127,8 +127,7 @@ function parseTableRow(cells: string[]): ChronoEvent[] {
   const fromCurrentEra = cleanCell(cells[0]);
   const fromBigBang    = cleanCell(cells[1]);
   const unit           = cleanCell(cells[2]);
-  const scale          = cleanCell(cells[3]);
-  const physical       = cleanCell(cells[4]);
+  const scale          = cleanCell(cells[3]);  const physical       = cleanCell(cells[4]);
   const evolution      = cleanCell(cells[5]);
   const science        = cleanCell(cells[6]);
   const india          = cleanCell(cells[7]);
@@ -177,11 +176,48 @@ function parseTableRow(cells: string[]): ChronoEvent[] {
   }
 
   // If world content exists and primary is not world, also emit world event
+  // Assign to world_asia/europe/america based on keywords in the world text
   if (events.length > 0 && !events[0].row.startsWith('world') && !isNaOrEmpty(world)) {
-    events.push({ ...base, title: world, row: 'world_asia' });
+    const worldRow = classifyWorldRow(world, scale);
+    events.push({ ...base, title: world, row: worldRow });
   }
 
   return events;
+}
+
+/**
+ * Classify a world event into world_asia, world_europe, or world_america
+ * based on keywords in the text and scale/context.
+ */
+function classifyWorldRow(worldText: string, scale: string): 'world_asia' | 'world_europe' | 'world_america' {
+  const t = worldText.toLowerCase();
+  const s = scale.toLowerCase();
+
+  // America keywords
+  const americaKw = ['america', 'aztec', 'inca', 'maya', 'clovis', 'columbus', 'jamestown',
+    'boston', 'washington', 'us ', 'usa', 'united states', 'canada', 'mexico',
+    'pacific rim', 'kelp highway', 'pre-clovis', 'sahul'];
+  if (americaKw.some(k => t.includes(k))) return 'world_america';
+
+  // Europe keywords
+  const europeKw = ['rome', 'roman', 'greek', 'greece', 'europe', 'european', 'britain',
+    'england', 'french', 'france', 'german', 'spain', 'spanish', 'viking',
+    'charlemagne', 'napoleon', 'renaissance', 'reformation', 'crusade',
+    'byzantine', 'ottoman', 'medieval', 'feudal', 'magna carta', 'waterloo',
+    'versailles', 'westphalia', 'athens', 'sparta', 'alexander', 'caesar',
+    'augustus', 'justinian', 'carolingian', 'frankish', 'gothic', 'vandal',
+    'hun', 'mongol in europe', 'black death', 'plague of justinian'];
+  if (europeKw.some(k => t.includes(k))) return 'world_europe';
+
+  // Asia keywords (default for most ancient/cosmic events)
+  const asiaKw = ['china', 'chinese', 'japan', 'japanese', 'korea', 'mongol', 'persia',
+    'persian', 'mesopotamia', 'babylon', 'sumeria', 'egypt', 'ottoman',
+    'tang', 'han', 'qin', 'ming', 'qing', 'silk road', 'gobekli',
+    'fertile crescent', 'jericho', 'catalhoyuk'];
+  if (asiaKw.some(k => t.includes(k))) return 'world_asia';
+
+  // Cosmic/geological/biological events — use asia as default (neutral)
+  return 'world_asia';
 }
 
 function parseMarkdownFile(filePath: string): ChronoEvent[] {

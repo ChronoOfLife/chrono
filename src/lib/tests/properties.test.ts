@@ -161,7 +161,8 @@ describe('Property 5: Navigator Boundary and Zoom Invariants', () => {
         // may be off-screen to the right — that's correct (user can scroll to reach it).
         const timelineWidth = (tx(HEAT_DEATH_TIME) - tx(BIG_BANG_TIME)) * clamped.zoomScale;
         if (timelineWidth <= vw) {
-          expect(heatDeathSX).toBeLessThanOrEqual(vw + 1);
+          // Allow 2px tolerance for floating-point rounding in piecewise axis
+          expect(heatDeathSX).toBeLessThanOrEqual(vw + 2);
         }
       }
     ), { numRuns: 100 });

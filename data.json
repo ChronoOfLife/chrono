@@ -1,0 +1,55 @@
+[
+  {
+    "time": -13800000000.0,
+    "title": "Big Bang",
+    "category": "Cosmic",
+    "link": "https://en.wikipedia.org/wiki/Big_Bang"
+  },
+  {
+    "time": -4540000000.0,
+    "title": "Formation of Earth",
+    "category": "Planetary",
+    "link": "https://en.wikipedia.org/wiki/History_of_Earth"
+  },
+  {
+    "time": -3800000000.0,
+    "title": "Abiogenesis",
+    "category": "Biology",
+    "link": "https://en.wikipedia.org/wiki/Abiogenesis"
+  },
+  {
+    "time": -2800000.0,
+    "title": "Genus Homo emerges",
+    "category": "Human Evolution",
+    "link": "https://en.wikipedia.org/wiki/Homo"
+  },
+  {
+    "time": -500,
+    "title": "Axial Age",
+    "category": "Civilisation",
+    "link": "https://en.wikipedia.org/wiki/Axial_Age"
+  },
+  {
+    "time": 1500,
+    "title": "Renaissance Peak",
+    "category": "Modern",
+    "link": "https://en.wikipedia.org/wiki/High_Renaissance"
+  },
+  {
+    "time": 2026,
+    "title": "Present Day",
+    "category": "Modern"
+  },
+  {
+    "time": 2045,
+    "title": "Technological Singularity",
+    "category": "Future",
+    "link": "https://en.wikipedia.org/wiki/Technological_singularity"
+  },
+  {
+    "time": 10000000000.0,
+    "title": "Far Future / Big Rip",
+    "category": "Future",
+    "link": "https://en.wikipedia.org/wiki/Big_Rip"
+  }
+]

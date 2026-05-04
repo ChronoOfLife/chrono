@@ -9,38 +9,25 @@ canvas.height = window.innerHeight;
 let scale = 1;
 let offsetX = 0;
 
-const events = [
- {time:-13.8e9, title:"Big Bang", link:"https://en.wikipedia.org/wiki/Big_Bang"},
- {time:0, title:"Present"},
- {time:1e10, title:"Future"}
-];
+let events = [];
 
-// log time compression
+fetch('data.json').then(r=>r.json()).then(d=>{
+  events = d;
+  draw();
+});
+
 function tx(t){
  return Math.sign(t)*Math.log10(Math.abs(t)+1)*500;
 }
 
-// ellipse projection
 function ty(x){
- return Math.sin(x/1000)*100;
-}
-
-// quadtree (simple)
-class Quad {
- constructor(x,y,w,h){
-  this.b = {x,y,w,h};
-  this.p=[];
- }
- insert(e){
-  this.p.push(e);
- }
- query(){
-  return this.p;
- }
+ return Math.sin(x/800)*120;
 }
 
 function draw(){
+ if(!events.length) return;
  ctx.clearRect(0,0,canvas.width,canvas.height);
+
  ctx.save();
  ctx.translate(canvas.width/2 + offsetX, canvas.height/2);
  ctx.scale(scale,1);
@@ -56,10 +43,12 @@ function draw(){
    let y = ty(x);
 
    ctx.beginPath();
-   ctx.arc(x,y,5,0,Math.PI*2);
+   ctx.arc(x,y,4,0,Math.PI*2);
    ctx.fill();
 
-   ctx.fillText(e.title,x+8,y-8);
+   if(scale > 0.8){
+     ctx.fillText(e.title,x+6,y-6);
+   }
  });
 
  ctx.restore();
@@ -85,7 +74,7 @@ canvas.addEventListener('click', e=>{
  events.forEach(ev=>{
    let ex = tx(ev.time);
    let ey = ty(ex);
-   if(Math.hypot(ex-x,ey-y)<10){
+   if(Math.hypot(ex-x,ey-y)<8){
      show(ev);
    }
  });
@@ -98,7 +87,7 @@ function show(ev){
    fetch("https://en.wikipedia.org/api/rest_v1/page/summary/"+ev.title.replace(/ /g,"_"))
    .then(r=>r.json())
    .then(d=>{
-     modal.innerHTML = "<h3>"+ev.title+"</h3><p>"+d.extract+"</p><a href='"+ev.link+"' target='_blank'>Read more</a>";
+     modal.innerHTML = "<h3>"+ev.title+"</h3><p>"+(d.extract||"No summary")+"</p><a href='"+ev.link+"' target='_blank'>Read more</a>";
    });
  }
 }

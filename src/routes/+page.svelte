@@ -29,9 +29,10 @@
 
   // ── State ─────────────────────────────────────────────────────────────────
   let viewState: ViewState = { panX: 0, zoomScale: 1 };
-  let viewportWidth = 0;
-  let viewportHeight = 0;
-  let isMobile = false;
+  // Initialise to window dimensions immediately (avoids 0×0 flash before onMount)
+  let viewportWidth = typeof window !== 'undefined' ? window.innerWidth : 1280;
+  let viewportHeight = typeof window !== 'undefined' ? window.innerHeight : 800;
+  let isMobile = viewportWidth < 600;
   let indiaFilterActive = false;
   let listViewActive = false;
   let selectedEvent: ChronoEvent | null = null;
@@ -175,7 +176,6 @@
 <div
   bind:this={containerEl}
   class="timeline-container"
-  style="width:{viewportWidth}px;height:{viewportHeight}px"
   role="region"
   aria-label="Chrono of Life interactive timeline"
   on:pointerdown={handlePointerDown}
@@ -319,6 +319,8 @@
     position: fixed;
     top: 0;
     left: 0;
+    width: 100vw;
+    height: 100vh;
     overflow: hidden;
     cursor: grab;
     user-select: none;

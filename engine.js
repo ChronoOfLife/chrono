@@ -1,41 +1,66 @@
 /**
- * Chrono of Life — engine.js  v4
- * Vertical scroll layout: time flows top→bottom, categories as columns.
- * Native browser scroll = no performance issues.
- * 1732 events rendered as DOM chips — only visible ones are in viewport.
+ * Chrono of Life — engine.js v5
+ * Neal.fun-inspired: smooth vertical scroll, events float freely,
+ * gradient background shifts with era, big time indicator.
  */
 
-// ── Column definitions ────────────────────────────────────────────────────────
-const COLS = [
-  { key:'physical',      label:'Physical\n& Natural', bg:'#e8f5e9', dot:'#4caf50' },
-  { key:'evolution',     label:'Evolution\n& Life',   bg:'#fffde7', dot:'#ff9800' },
-  { key:'science',       label:'Science\n& Tech',     bg:'#e3f2fd', dot:'#2196f3' },
-  { key:'india',         label:'India',               bg:'#1a3a6b', dot:'#FF9933' },
-  { key:'world_asia',    label:'World\nAsia',         bg:'#0d2b5e', dot:'#90caf9' },
-  { key:'world_europe',  label:'World\nEurope',       bg:'#0d2b5e', dot:'#80cbc4' },
-  { key:'world_america', label:'World\nAmerica',      bg:'#0d2b5e', dot:'#ce93d8' },
+// ── Row colours & labels ──────────────────────────────────────────────────────
+const ROW = {
+  physical:      { dot:'#4caf50', label:'Physical'  },
+  evolution:     { dot:'#ff9800', label:'Evolution'  },
+  science:       { dot:'#2196f3', label:'Science'    },
+  india:         { dot:'#FF9933', label:'India'      },
+  world_asia:    { dot:'#90caf9', label:'Asia'       },
+  world_europe:  { dot:'#80cbc4', label:'Europe'     },
+  world_america: { dot:'#ce93d8', label:'Americas'   },
+};
+
+// ── Era background gradients (Big Bang → Heat Death) ─────────────────────────
+const ERA_BKGS = [
+  { t:-13.8e9, bg:'#0a0010' },  // Cosmic — deep purple-black
+  { t:-4.6e9,  bg:'#050a1a' },  // Solar system — dark navy
+  { t:-3.8e9,  bg:'#051a10' },  // Life begins — dark green-black
+  { t:-541e6,  bg:'#071520' },  // Cambrian — deep ocean
+  { t:-252e6,  bg:'#0d1a08' },  // Mesozoic — dark forest
+  { t:-66e6,   bg:'#1a0d05' },  // Cenozoic — warm dark
+  { t:-2.8e6,  bg:'#0d1020' },  // Hominins — cool dark
+  { t:-10000,  bg:'#0a1520' },  // Neolithic — slate
+  { t:-3000,   bg:'#0d1525' },  // Bronze Age — deep blue
+  { t:0,       bg:'#0a1020' },  // Classical — midnight
+  { t:1500,    bg:'#0d1020' },  // Early Modern
+  { t:1760,    bg:'#0a0d18' },  // Industrial — dark steel
+  { t:1900,    bg:'#050710' },  // Modern — near black
+  { t:2026,    bg:'#050a15' },  // Future — deep space
+  { t:1e9,     bg:'#020308' },  // Deep future — void
 ];
+
+function getBg(t) {
+  for (let i = ERA_BKGS.length-1; i >= 0; i--) {
+    if (t >= ERA_BKGS[i].t) return ERA_BKGS[i].bg;
+  }
+  return '#05070f';
+}
 
 // ── Time formatting ───────────────────────────────────────────────────────────
 function fmtTime(t) {
   if (t === 0) return 'Year 0 CE';
   const abs = Math.abs(t);
-  if (abs >= 1e9)  return (abs/1e9).toPrecision(3) + 'B yrs ' + (t<0?'ago':'from now');
-  if (abs >= 1e6)  return (abs/1e6).toPrecision(3) + 'M yrs ' + (t<0?'ago':'from now');
+  if (abs >= 1e9)  return (abs/1e9).toPrecision(3) + ' Billion Years ' + (t<0?'Ago':'From Now');
+  if (abs >= 1e6)  return (abs/1e6).toPrecision(3) + ' Million Years ' + (t<0?'Ago':'From Now');
   if (abs >= 1000) return t < 0 ? Math.round(abs)+' BCE' : Math.round(abs)+' CE';
   if (abs >= 1)    return t < 0 ? Math.round(abs)+' BCE' : Math.round(abs)+' CE';
-  return t.toExponential(2) + ' yrs';
+  return t.toExponential(2) + ' Years';
 }
 
 function fmtBigBang(t) {
-  const since = 13.8e9 + t;
-  if (since <= 0) return 'At Big Bang';
-  if (since >= 1e9) return (since/1e9).toPrecision(3) + 'B yrs after Big Bang';
-  if (since >= 1e6) return (since/1e6).toPrecision(3) + 'M yrs after Big Bang';
-  return Math.round(since) + ' yrs after Big Bang';
+  const s = 13.8e9 + t;
+  if (s <= 0) return 'At the Big Bang';
+  if (s >= 1e9) return (s/1e9).toPrecision(3) + 'B yrs after Big Bang';
+  if (s >= 1e6) return (s/1e6).toPrecision(3) + 'M yrs after Big Bang';
+  return Math.round(s) + ' yrs after Big Bang';
 }
 
-const AGE_TABLE = [
+const AGES = [
   [-Infinity,-13.77e9,'Planck Epoch'],[-13.77e9,-13.4e9,'Dark Ages'],
   [-13.4e9,-11e9,'Cosmic Dawn'],[-11e9,-5e9,'Galactic Age'],
   [-5e9,-4.6e9,'Pre-Solar'],[-4.6e9,-4e9,'Hadean'],
@@ -50,335 +75,302 @@ const AGE_TABLE = [
   [2026,Infinity,'Future'],
 ];
 function getAge(t) {
-  for (const [f,to,l] of AGE_TABLE) if (t>=f&&t<to) return l;
+  for (const [f,to,l] of AGES) if (t>=f&&t<to) return l;
   return '—';
 }
 
-// ── Phase definitions ─────────────────────────────────────────────────────────
-const PHASES = [
-  { label:'Phase 1 — Cosmic Origins & Deep Time',  from:-13.8e9, to:-10e6  },
-  { label:'Phase 2 — Hominins & Paleolithic',       from:-10e6,   to:-3000  },
-  { label:'Phase 3 — Classical & Medieval',         from:-3000,   to:1500   },
-  { label:'Phase 4 — Modern Era',                   from:1500,    to:2027   },
-  { label:'Phase 5 — Future & Deep Time',           from:2027,    to:1e106  },
+// ── State ─────────────────────────────────────────────────────────────────────
+let allEvents   = [];
+let indiaFilter = false;
+
+// ── Layout: group events into time buckets ────────────────────────────────────
+// Each bucket becomes one "row" in the scroll world.
+// Bucket height = 120px. Events float at random-ish X positions within the row.
+
+const BUCKET_H = 140;  // px height per time bucket
+
+// Bucket sizes by time range (years)
+const BUCKET_SIZES = [
+  [-13.8e9, -1e9,    500e6 ],
+  [-1e9,    -100e6,  50e6  ],
+  [-100e6,  -10e6,   5e6   ],
+  [-10e6,   -100e3,  500e3 ],
+  [-100e3,  -3000,   3000  ],
+  [-3000,   0,       200   ],
+  [0,       1500,    200   ],
+  [1500,    2030,    15    ],
+  [2030,    1e6,     100   ],
+  [1e6,     1e9,     1e6   ],
+  [1e9,     1e100,   1e9   ],
 ];
 
-// ── State ─────────────────────────────────────────────────────────────────────
-let allEvents    = [];
-let zoomLevel    = 1;   // 1=normal, 2=2x density, 0.5=half density
-let indiaFilter  = false;
-let selEvent     = null;
-
-// ── CSS variable for time column width ────────────────────────────────────────
-const TIME_W = 110;
-document.documentElement.style.setProperty('--time-w', TIME_W + 'px');
-
-// ── Build column headers ──────────────────────────────────────────────────────
-function buildHeader() {
-  const hdr = document.getElementById('header');
-  COLS.forEach(col => {
-    const div = document.createElement('div');
-    div.className = 'col-header';
-    div.style.background = col.bg + '22';
-    div.style.color = col.dot;
-    div.textContent = col.label.replace('\n', ' ');
-    hdr.appendChild(div);
-  });
-}
-
-// ── Group events by time bucket ───────────────────────────────────────────────
-// Each "era band" represents a time bucket. We group nearby events together.
-function groupEvents(events, zoom) {
-  if (!events.length) return [];
-
-  // Sort by time
-  const sorted = [...events].sort((a,b) => a.time - b.time);
-
-  // Define bucket sizes based on time range
-  // Each bucket = one row in the timeline
-  // Bucket size adapts to zoom level
-  const buckets = [];
-
-  // Use the phase boundaries to create natural groupings
-  // Within each phase, group events that are "close" in time
-  const phases = [
-    { from:-13.8e9, to:-1e9,    bucketSize: 200e6 / zoom },  // 200M yr buckets
-    { from:-1e9,    to:-100e6,  bucketSize: 20e6  / zoom },  // 20M yr buckets
-    { from:-100e6,  to:-10e6,   bucketSize: 2e6   / zoom },  // 2M yr buckets
-    { from:-10e6,   to:-100e3,  bucketSize: 200e3 / zoom },  // 200K yr buckets
-    { from:-100e3,  to:-3000,   bucketSize: 2000  / zoom },  // 2000 yr buckets
-    { from:-3000,   to:0,       bucketSize: 100   / zoom },  // 100 yr buckets
-    { from:0,       to:1500,    bucketSize: 100   / zoom },  // 100 yr buckets
-    { from:1500,    to:2030,    bucketSize: 10    / zoom },  // 10 yr buckets
-    { from:2030,    to:1e6,     bucketSize: 50    / zoom },  // 50 yr buckets
-    { from:1e6,     to:1e100,   bucketSize: 1e9   / zoom },  // 1B yr buckets
-  ];
-
-  // Group events into buckets
-  const bucketMap = new Map();
-
-  for (const ev of sorted) {
-    // Find which phase this event belongs to
-    let bs = 1e9;
-    for (const ph of phases) {
-      if (ev.time >= ph.from && ev.time < ph.to) { bs = ph.bucketSize; break; }
-    }
-    const bucketKey = Math.floor(ev.time / bs) * bs;
-    if (!bucketMap.has(bucketKey)) {
-      bucketMap.set(bucketKey, { time: bucketKey, events: [] });
-    }
-    bucketMap.get(bucketKey).events.push(ev);
+function getBucketSize(t) {
+  for (const [from,to,sz] of BUCKET_SIZES) {
+    if (t >= from && t < to) return sz;
   }
-
-  // Convert to sorted array
-  return Array.from(bucketMap.values()).sort((a,b) => a.time - b.time);
+  return 1e9;
 }
 
-// ── Render timeline ───────────────────────────────────────────────────────────
-function renderTimeline() {
-  const container = document.getElementById('timeline');
-  container.innerHTML = '';
+function groupIntoBuckets(events) {
+  const map = new Map();
+  for (const ev of events) {
+    const sz = getBucketSize(ev.time);
+    const key = Math.floor(ev.time / sz) * sz;
+    if (!map.has(key)) map.set(key, []);
+    map.get(key).push(ev);
+  }
+  return Array.from(map.entries())
+    .sort((a,b) => a[0]-b[0])
+    .map(([t,evs]) => ({ t, evs }));
+}
 
-  const buckets = groupEvents(allEvents, zoomLevel);
-  let lastPhaseIdx = -1;
+// ── Age change detection ──────────────────────────────────────────────────────
+function getAgeBoundaries(buckets) {
+  const boundaries = new Set();
+  let lastAge = null;
+  for (const b of buckets) {
+    const age = getAge(b.t);
+    if (age !== lastAge) {
+      boundaries.add(b.t);
+      lastAge = age;
+    }
+  }
+  return boundaries;
+}
+
+// ── Build the DOM ─────────────────────────────────────────────────────────────
+function buildWorld(events) {
+  const world = document.getElementById('scroll-world');
+  world.innerHTML = '';
+
+  const buckets = groupIntoBuckets(events);
+  const ageBounds = getAgeBoundaries(buckets);
+
+  // Horizontal positions for each row key (0-1 fraction of available width)
+  // Stagger so different categories appear at different X positions
+  const COL_X = {
+    physical:      [0.05, 0.25, 0.45],
+    evolution:     [0.15, 0.35, 0.55],
+    science:       [0.60, 0.75, 0.88],
+    india:         [0.10, 0.30, 0.50, 0.70],
+    world_asia:    [0.20, 0.40, 0.60, 0.80],
+    world_europe:  [0.55, 0.72, 0.85],
+    world_america: [0.08, 0.28, 0.48, 0.68],
+  };
+
+  // Track X position index per row
+  const xIdx = {};
+  for (const k of Object.keys(COL_X)) xIdx[k] = 0;
+
+  let lastAge = null;
 
   for (const bucket of buckets) {
-    const t = bucket.time;
+    const { t, evs } = bucket;
+    const age = getAge(t);
 
-    // Phase divider
-    const phaseIdx = PHASES.findIndex(p => t >= p.from && t < p.to);
-    if (phaseIdx !== lastPhaseIdx && phaseIdx >= 0) {
-      lastPhaseIdx = phaseIdx;
-      const div = document.createElement('div');
-      div.className = 'phase-divider';
-      div.innerHTML = `
-        <div class="pd-time">${fmtTime(t)}</div>
-        <div class="pd-label">${PHASES[phaseIdx].label}</div>
-      `;
-      container.appendChild(div);
+    // Age boundary banner
+    if (ageBounds.has(t) && age !== lastAge) {
+      lastAge = age;
+      const banner = document.createElement('div');
+      banner.className = 'age-banner';
+      banner.dataset.t = t;
+      banner.innerHTML = `<span class="age-banner-text">${age} · ${fmtTime(t)}</span>`;
+      world.appendChild(banner);
     }
 
-    // Era band
-    const band = document.createElement('div');
-    band.className = 'era-band';
+    // Events area for this bucket
+    const area = document.createElement('div');
+    area.className = 'events-area';
+    area.dataset.t = t;
+    area.style.height = Math.max(BUCKET_H, evs.length * 28 + 40) + 'px';
+    area.style.background = getBg(t);
 
-    // Time label
-    const timeDiv = document.createElement('div');
-    timeDiv.className = 'era-time';
-    timeDiv.innerHTML = `
-      <span class="t-main">${fmtTime(t)}</span>
-      <span class="t-age">${getAge(t)}</span>
-    `;
-    band.appendChild(timeDiv);
+    // Place each event
+    evs.forEach((ev, i) => {
+      const r = ROW[ev.row];
+      if (!r) return;
 
-    // Event cells
-    const cells = document.createElement('div');
-    cells.className = 'era-cells';
+      const card = document.createElement('div');
+      card.className = 'ev-card' + (indiaFilter && !ev.india ? ' dimmed' : '');
+      card.dataset.row = ev.row;
+      card.dataset.india = ev.india ? '1' : '';
 
-    COLS.forEach(col => {
-      const cell = document.createElement('div');
-      cell.className = 'era-cell';
-      cell.style.background = col.bg + '18';
+      // X position: use column positions, cycling through them
+      const positions = COL_X[ev.row] || [0.1, 0.4, 0.7];
+      const xFrac = positions[xIdx[ev.row] % positions.length];
+      xIdx[ev.row]++;
 
-      const colEvents = bucket.events.filter(e => e.row === col.key);
-      colEvents.forEach(ev => {
-        const chip = makeChip(ev, col);
-        cell.appendChild(chip);
-      });
+      // Y position: spread vertically within the area
+      const yFrac = 0.1 + (i / Math.max(evs.length, 1)) * 0.75;
 
-      cells.appendChild(cell);
+      card.style.left = (xFrac * 100) + '%';
+      card.style.top  = (yFrac * 100) + '%';
+
+      // Row badge
+      const badge = document.createElement('div');
+      badge.className = 'ev-row-badge';
+      badge.style.color = r.dot;
+      badge.textContent = r.label;
+
+      // Title line
+      const titleLine = document.createElement('div');
+      titleLine.style.display = 'flex';
+      titleLine.style.alignItems = 'flex-start';
+      titleLine.style.gap = '5px';
+
+      const dot = document.createElement('span');
+      dot.className = 'ev-dot';
+      dot.style.background = r.dot;
+      dot.style.marginTop = '3px';
+
+      const title = document.createElement('span');
+      title.className = 'ev-title';
+      title.textContent = ev.title;
+
+      titleLine.appendChild(dot);
+      titleLine.appendChild(title);
+
+      card.appendChild(badge);
+      card.appendChild(titleLine);
+
+      // Sub-text
+      const sub = ev.india && ev.row !== 'india' ? ev.india
+                : ev.world && !ev.row.startsWith('world') ? ev.world
+                : ev.age ? ev.age : '';
+      if (sub) {
+        const subEl = document.createElement('div');
+        subEl.className = 'ev-sub';
+        subEl.textContent = sub;
+        card.appendChild(subEl);
+      }
+
+      card.addEventListener('click', e => { e.stopPropagation(); showPanel(ev); });
+      area.appendChild(card);
     });
 
-    band.appendChild(cells);
-    container.appendChild(band);
-  }
-}
-
-function makeChip(ev, col) {
-  const chip = document.createElement('div');
-  chip.className = 'event-chip' + (indiaFilter && !ev.india ? ' dimmed' : '');
-  chip.dataset.time  = ev.time;
-  chip.dataset.title = ev.title;
-  chip.dataset.row   = ev.row;
-
-  const dot = document.createElement('div');
-  dot.className = 'chip-dot';
-  dot.style.background = col.dot;
-
-  const text = document.createElement('div');
-  text.className = 'chip-text';
-
-  const title = document.createElement('div');
-  title.className = 'chip-title';
-  title.textContent = ev.title;
-
-  text.appendChild(title);
-
-  if (ev.india && ev.row !== 'india') {
-    const sub = document.createElement('div');
-    sub.className = 'chip-sub';
-    sub.style.color = '#FF9933';
-    sub.textContent = ev.india;
-    text.appendChild(sub);
-  } else if (ev.world && !ev.row.startsWith('world')) {
-    const sub = document.createElement('div');
-    sub.className = 'chip-sub';
-    sub.textContent = ev.world;
-    text.appendChild(sub);
+    world.appendChild(area);
   }
 
-  chip.appendChild(dot);
-  chip.appendChild(text);
-
-  chip.addEventListener('click', e => {
-    e.stopPropagation();
-    showPanel(ev);
-  });
-
-  return chip;
+  // End cap
+  const end = document.createElement('div');
+  end.style.cssText = 'text-align:center;padding:80px 20px;color:rgba(255,255,255,.2);font-size:14px;';
+  end.innerHTML = '<div style="font-size:32px;margin-bottom:12px">∞</div>Heat Death of the Universe<br><small>10<sup>106</sup> years from now</small>';
+  world.appendChild(end);
 }
 
-// ── Scroll-driven header update ───────────────────────────────────────────────
-function updateHeader() {
-  // Find the era band currently at the top of the viewport
-  const bands = document.querySelectorAll('.era-band');
-  const scrollY = window.scrollY + 60; // account for header
+// ── Scroll-driven HUD update ──────────────────────────────────────────────────
+function onScroll() {
+  // Find current time from visible area
+  const areas = document.querySelectorAll('.events-area[data-t]');
+  const mid = window.scrollY + window.innerHeight / 2;
+  let currentT = -13.8e9;
 
-  let currentBand = null;
-  for (const band of bands) {
-    const rect = band.getBoundingClientRect();
-    if (rect.top <= 60) currentBand = band;
+  for (const area of areas) {
+    const top = area.offsetTop;
+    if (top <= mid) currentT = parseFloat(area.dataset.t);
     else break;
   }
 
-  if (currentBand) {
-    const timeEl = currentBand.querySelector('.t-main');
-    const t = parseFloat(currentBand.querySelector('.era-time')?.dataset?.t || '0');
-    if (timeEl) {
-      document.getElementById('hdr-time').textContent = timeEl.textContent;
-      document.getElementById('hdr-bb').textContent = '';
-    }
-  }
+  document.getElementById('hud-time').textContent = fmtTime(currentT);
+  document.getElementById('hud-age').textContent  = getAge(currentT);
 
-  // Update scroll progress bar
+  // Progress bar
   const total = document.body.scrollHeight - window.innerHeight;
-  const pct = total > 0 ? (window.scrollY / total * 100) : 0;
-  document.getElementById('progress').style.width = pct + '%';
+  const pct = total > 0 ? window.scrollY / total * 100 : 0;
+  document.getElementById('prog').style.width = pct + '%';
 }
 
 // ── Detail panel ──────────────────────────────────────────────────────────────
-const panel  = document.getElementById('panel');
-const pTitle = document.getElementById('panel-title');
-const pBody  = document.getElementById('panel-body');
-const pClose = document.getElementById('panel-close');
-const pLink  = document.getElementById('panel-link');
-const pTime  = document.getElementById('panel-time');
-
-pClose.addEventListener('click', () => { panel.style.display = 'none'; selEvent = null; });
+document.getElementById('pc').addEventListener('click', () => {
+  document.getElementById('panel').style.display = 'none';
+});
 document.addEventListener('click', e => {
-  if (panel.style.display === 'block' && !panel.contains(e.target)) {
-    panel.style.display = 'none'; selEvent = null;
+  const p = document.getElementById('panel');
+  if (p.style.display === 'block' && !p.contains(e.target)) {
+    p.style.display = 'none';
   }
 });
 
 function showPanel(ev) {
-  selEvent = ev;
-  pTitle.textContent = ev.title;
-  pTime.textContent  = fmtTime(ev.time) + (ev.age ? ' · ' + ev.age : '') + ' · ' + getAge(ev.time);
-  pBody.innerHTML    = '<em style="color:#555">Loading…</em>';
-  panel.style.display = 'block';
+  const p  = document.getElementById('panel');
+  const pt = document.getElementById('pt');
+  const pb = document.getElementById('pb');
+  const pl = document.getElementById('pl');
+  const ptime = document.getElementById('ptime');
+
+  pt.textContent   = ev.title;
+  ptime.textContent = fmtTime(ev.time) + ' · ' + getAge(ev.time);
+  pb.innerHTML     = '<em style="color:#555">Loading…</em>';
+  p.style.display  = 'block';
 
   if (ev.link) {
-    pLink.href = ev.link;
-    pLink.style.display = 'block';
+    pl.href = ev.link; pl.style.display = 'block';
     const slug = ev.link.split('/wiki/').pop() || ev.title.replace(/ /g,'_');
     fetch('https://en.wikipedia.org/api/rest_v1/page/summary/' + encodeURIComponent(slug))
       .then(r => r.ok ? r.json() : null)
       .then(d => {
-        if (!d) { pBody.innerHTML = buildFallback(ev); return; }
+        if (!d) { pb.innerHTML = fallback(ev); return; }
         let h = '';
         if (d.thumbnail) h += `<img src="${d.thumbnail.source}" alt="">`;
         h += `<p>${d.extract||''}</p>`;
-        if (ev.india) h += `<p class="india-note"><strong>India:</strong> ${ev.india}</p>`;
-        pBody.innerHTML = h;
+        if (ev.india) h += `<p class="in"><strong>India:</strong> ${ev.india}</p>`;
+        pb.innerHTML = h;
       })
-      .catch(() => { pBody.innerHTML = buildFallback(ev); });
+      .catch(() => { pb.innerHTML = fallback(ev); });
   } else {
-    pLink.style.display = 'none';
-    pBody.innerHTML = buildFallback(ev);
+    pl.style.display = 'none';
+    pb.innerHTML = fallback(ev);
   }
 }
 
-function buildFallback(ev) {
+function fallback(ev) {
   let h = '';
-  if (ev.india) h += `<p class="india-note"><strong>India:</strong> ${ev.india}</p>`;
+  if (ev.india) h += `<p class="in"><strong>India:</strong> ${ev.india}</p>`;
   if (ev.world) h += `<p>${ev.world}</p>`;
-  if (!h) h = '<p style="color:#555">No description available.</p>';
-  return h;
+  return h || '<p style="color:#555">No description available.</p>';
 }
 
 // ── Controls ──────────────────────────────────────────────────────────────────
-document.getElementById('btn-zoom-in').addEventListener('click', () => {
-  zoomLevel = Math.min(8, zoomLevel * 2);
-  document.getElementById('zoom-display').textContent = 'zoom ' + zoomLevel + '×';
-  renderTimeline();
-});
-document.getElementById('btn-zoom-out').addEventListener('click', () => {
-  zoomLevel = Math.max(0.25, zoomLevel / 2);
-  document.getElementById('zoom-display').textContent = 'zoom ' + zoomLevel + '×';
-  renderTimeline();
-});
 document.getElementById('btn-india').addEventListener('click', function() {
   indiaFilter = !indiaFilter;
-  this.classList.toggle('active', indiaFilter);
-  // Update chip visibility
-  document.querySelectorAll('.event-chip').forEach(chip => {
-    const row = chip.dataset.row;
-    // We need to know if this event has india data — store it
-    chip.classList.toggle('dimmed', indiaFilter && !chip.dataset.india);
+  this.classList.toggle('on', indiaFilter);
+  document.querySelectorAll('.ev-card').forEach(c => {
+    c.classList.toggle('dimmed', indiaFilter && !c.dataset.india);
   });
 });
-document.getElementById('btn-reset').addEventListener('click', () => {
+
+document.getElementById('btn-top').addEventListener('click', () => {
   window.scrollTo({ top: 0, behavior: 'smooth' });
 });
 
-// Keyboard navigation
 window.addEventListener('keydown', e => {
-  if (e.key === 'Escape') { panel.style.display = 'none'; selEvent = null; }
-  if (e.key === 'Home')   { window.scrollTo({ top: 0, behavior: 'smooth' }); }
-  if (e.key === 'End')    { window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' }); }
+  if (e.key === 'Escape') document.getElementById('panel').style.display = 'none';
+  if (e.key === 'Home')   window.scrollTo({ top: 0, behavior: 'smooth' });
+  if (e.key === 'End')    window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
 });
 
-// Scroll listener for header update
-window.addEventListener('scroll', updateHeader, { passive: true });
+window.addEventListener('scroll', onScroll, { passive: true });
 
-// ── Data loading ──────────────────────────────────────────────────────────────
+// ── Load data ─────────────────────────────────────────────────────────────────
 const BASE = (function() {
   const p = window.location.pathname;
-  const dir = p.endsWith('/') ? p.slice(0,-1) : p.replace(/\/[^/]*$/, '');
-  return dir || '';
+  return p.endsWith('/') ? p.slice(0,-1) : p.replace(/\/[^/]*$/,'');
 })();
 
-const fill = document.getElementById('loading-fill');
+const lfill = document.getElementById('lfill');
 
 fetch(BASE + '/data.json')
   .then(r => {
     if (!r.ok) throw new Error('HTTP ' + r.status);
-    // Stream progress
-    const total = parseInt(r.headers.get('content-length') || '0');
-    if (total && r.body) {
+    const len = parseInt(r.headers.get('content-length')||'0');
+    if (len && r.body) {
       const reader = r.body.getReader();
-      let received = 0;
-      const chunks = [];
+      let got = 0; const chunks = [];
       function pump() {
-        return reader.read().then(({ done, value }) => {
-          if (done) {
-            const blob = new Blob(chunks);
-            return blob.text().then(text => JSON.parse(text));
-          }
-          chunks.push(value);
-          received += value.length;
-          if (fill) fill.style.width = Math.min(95, received/total*100) + '%';
+        return reader.read().then(({done,value}) => {
+          if (done) return new Blob(chunks).text().then(t => JSON.parse(t));
+          chunks.push(value); got += value.length;
+          if (lfill) lfill.style.width = Math.min(95, got/len*100) + '%';
           return pump();
         });
       }
@@ -388,16 +380,13 @@ fetch(BASE + '/data.json')
   })
   .then(d => {
     allEvents = Array.isArray(d) ? d : [];
-    // Store india flag on events for filter
-    allEvents.forEach(ev => { if (!ev.india) ev._noIndia = true; });
     console.log('[chrono] Loaded', allEvents.length, 'events');
-    if (fill) fill.style.width = '100%';
+    if (lfill) lfill.style.width = '100%';
     setTimeout(() => {
       document.getElementById('loading').style.display = 'none';
-      buildHeader();
-      renderTimeline();
-      updateHeader();
-    }, 200);
+      buildWorld(allEvents);
+      onScroll();
+    }, 150);
   })
   .catch(err => {
     console.error('[chrono] Failed:', err);
@@ -408,7 +397,6 @@ fetch(BASE + '/data.json')
       {time:-66e6,  title:'K-Pg Extinction',row:'physical'},
       {time:-2.8e6, title:'Genus Homo',row:'evolution'},
       {time:-10000, title:'Neolithic Revolution',row:'evolution'},
-      {time:-500,   title:'Axial Age',row:'science'},
       {time:0,      title:'Year 0 CE',row:'physical'},
       {time:1526,   title:'Mughal Empire',row:'india',india:'Babur wins Panipat'},
       {time:1760,   title:'Industrial Revolution',row:'science'},
@@ -416,7 +404,7 @@ fetch(BASE + '/data.json')
       {time:2026,   title:'Present',row:'physical'},
     ];
     document.getElementById('loading').style.display = 'none';
-    buildHeader();
-    renderTimeline();
+    buildWorld(allEvents);
+    onScroll();
   });
 

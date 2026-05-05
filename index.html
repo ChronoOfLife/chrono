@@ -3,351 +3,259 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Chronology of Life — scroll through 13.8 billion years of history">
   <title>Chrono of Life</title>
   <link rel="icon" href="favicon.png">
   <style>
-    /* ── Reset ─────────────────────────────────────────────────────────── */
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    html { scroll-behavior: smooth; }
-    body {
-      background: #05070f;
-      color: #e8eaf6;
-      font-family: system-ui, -apple-system, sans-serif;
-      overflow-x: hidden;
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    html{scroll-behavior:auto}
+    body{
+      background:#05070f;
+      color:#e8eaf6;
+      font-family:system-ui,-apple-system,sans-serif;
+      overflow-x:hidden;
+      min-height:100vh;
     }
 
-    /* ── Sticky header ─────────────────────────────────────────────────── */
-    #header {
-      position: sticky;
-      top: 0;
-      z-index: 100;
-      background: rgba(5,7,15,0.96);
-      backdrop-filter: blur(8px);
-      border-bottom: 1px solid rgba(255,255,255,0.08);
-      display: flex;
-      align-items: stretch;
-      height: 52px;
+    /* ── Fixed HUD ─────────────────────────────────────────────────────── */
+    #hud{
+      position:fixed;top:0;left:0;right:0;z-index:200;
+      height:52px;
+      background:rgba(5,7,15,0.88);
+      backdrop-filter:blur(10px);
+      border-bottom:1px solid rgba(255,255,255,0.07);
+      display:flex;align-items:center;
+      padding:0 16px;gap:12px;
     }
-    #time-col {
-      width: var(--time-w);
-      min-width: var(--time-w);
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      padding: 0 8px;
-      border-right: 2px solid rgba(255,255,255,0.08);
+    #hud-time{
+      flex:1;
+      font-size:15px;font-weight:700;color:#fff;
+      white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
     }
-    #time-col .current-time {
-      font-size: 13px;
-      font-weight: 700;
-      color: #fff;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
+    #hud-age{
+      font-size:11px;padding:3px 10px;border-radius:12px;
+      background:rgba(100,181,246,0.15);color:#90caf9;
+      white-space:nowrap;
     }
-    #time-col .current-bb {
-      font-size: 9px;
-      color: rgba(255,200,50,0.7);
-      white-space: nowrap;
+    #hud-bb{
+      font-size:10px;color:rgba(255,200,50,0.65);
+      white-space:nowrap;display:none;
     }
-    .col-header {
-      flex: 1;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 10px;
-      font-weight: 700;
-      text-align: center;
-      padding: 4px 2px;
-      border-right: 1px solid rgba(255,255,255,0.06);
-      line-height: 1.2;
+    .hud-btn{
+      background:rgba(255,255,255,0.07);
+      border:1px solid rgba(255,255,255,0.12);
+      color:#e8eaf6;border-radius:6px;
+      padding:5px 12px;font-size:11px;cursor:pointer;
+      white-space:nowrap;transition:background .15s;
     }
-    .col-header:last-child { border-right: none; }
+    .hud-btn:hover{background:rgba(255,255,255,0.14);}
+    .hud-btn.on{background:rgba(255,153,51,.22);border-color:#FF9933;color:#FF9933;}
 
-    /* ── Controls bar ──────────────────────────────────────────────────── */
-    #controls {
-      position: fixed;
-      top: 0;
-      right: 0;
-      z-index: 200;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      padding: 8px 10px;
-      height: 52px;
-    }
-    .ctrl-btn {
-      background: rgba(255,255,255,0.08);
-      border: 1px solid rgba(255,255,255,0.15);
-      color: #e8eaf6;
-      border-radius: 6px;
-      padding: 5px 12px;
-      font-size: 11px;
-      cursor: pointer;
-      white-space: nowrap;
-      transition: background 0.15s;
-    }
-    .ctrl-btn:hover { background: rgba(255,255,255,0.15); }
-    .ctrl-btn.active { background: rgba(255,153,51,0.25); border-color: #FF9933; color: #FF9933; }
-    #zoom-display {
-      font-size: 11px;
-      color: #90caf9;
-      white-space: nowrap;
+    /* ── Scroll progress ───────────────────────────────────────────────── */
+    #prog{
+      position:fixed;top:52px;left:0;height:2px;
+      background:linear-gradient(90deg,#64b5f6,#FF9933);
+      z-index:201;transition:width .1s;pointer-events:none;
     }
 
-    /* ── Timeline body ─────────────────────────────────────────────────── */
-    #timeline {
-      display: flex;
-      align-items: flex-start;
+    /* ── Main scroll container ─────────────────────────────────────────── */
+    #scroll-world{
+      padding-top:52px;
+      position:relative;
     }
 
-    /* ── Time column ───────────────────────────────────────────────────── */
-    #time-axis {
-      width: var(--time-w);
-      min-width: var(--time-w);
-      position: sticky;
-      left: 0;
-      z-index: 50;
-      background: rgba(5,7,15,0.95);
-      border-right: 2px solid rgba(255,255,255,0.08);
+    /* ── Era section ───────────────────────────────────────────────────── */
+    .era-section{
+      position:relative;
+      min-height:100vh;
+      display:flex;
+      flex-direction:column;
+      justify-content:center;
+      overflow:hidden;
+      transition:background 0.8s ease;
     }
 
-    /* ── Category columns ──────────────────────────────────────────────── */
-    #columns {
-      flex: 1;
-      display: flex;
+    /* ── Era divider line ──────────────────────────────────────────────── */
+    .era-divider{
+      position:sticky;
+      top:52px;
+      z-index:100;
+      padding:10px 0;
+      text-align:center;
+      pointer-events:none;
     }
-    .cat-col {
-      flex: 1;
-      border-right: 1px solid rgba(255,255,255,0.05);
-      position: relative;
-      min-width: 0;
+    .era-divider-inner{
+      display:inline-flex;align-items:center;gap:12px;
+      background:rgba(5,7,15,0.75);
+      backdrop-filter:blur(8px);
+      border:1px solid rgba(255,255,255,0.1);
+      border-radius:20px;
+      padding:6px 20px;
     }
-    .cat-col:last-child { border-right: none; }
-
-    /* ── Era band (time slice row) ─────────────────────────────────────── */
-    .era-band {
-      display: flex;
-      border-bottom: 1px solid rgba(255,255,255,0.04);
-      position: relative;
+    .era-divider-time{
+      font-size:22px;font-weight:700;color:#fff;
+      letter-spacing:-0.5px;
     }
-    .era-band:hover { background: rgba(255,255,255,0.015); }
-
-    /* ── Time label in era band ────────────────────────────────────────── */
-    .era-time {
-      width: var(--time-w);
-      min-width: var(--time-w);
-      padding: 6px 8px;
-      font-size: 10px;
-      color: rgba(255,255,255,0.45);
-      text-align: right;
-      line-height: 1.3;
-      border-right: 2px solid rgba(255,255,255,0.08);
-      background: rgba(5,7,15,0.95);
-      position: sticky;
-      left: 0;
-      z-index: 10;
-      display: flex;
-      flex-direction: column;
-      justify-content: flex-start;
-      align-items: flex-end;
-    }
-    .era-time .t-main { font-weight: 600; color: rgba(255,255,255,0.65); font-size: 11px; }
-    .era-time .t-age  { font-size: 9px; color: rgba(255,255,255,0.3); margin-top: 2px; }
-
-    /* ── Event cell ────────────────────────────────────────────────────── */
-    .era-cells {
-      flex: 1;
-      display: flex;
-    }
-    .era-cell {
-      flex: 1;
-      padding: 4px 6px;
-      border-right: 1px solid rgba(255,255,255,0.04);
-      min-height: 36px;
-      display: flex;
-      flex-direction: column;
-      gap: 3px;
-    }
-    .era-cell:last-child { border-right: none; }
-
-    /* ── Event chip ────────────────────────────────────────────────────── */
-    .event-chip {
-      display: flex;
-      align-items: flex-start;
-      gap: 5px;
-      cursor: pointer;
-      border-radius: 4px;
-      padding: 3px 5px;
-      transition: background 0.1s;
-      text-decoration: none;
-    }
-    .event-chip:hover { background: rgba(255,255,255,0.08); }
-    .event-chip.dimmed { opacity: 0.15; }
-    .chip-dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      flex-shrink: 0;
-      margin-top: 3px;
-    }
-    .chip-text {
-      font-size: 11px;
-      line-height: 1.35;
-      color: #e8eaf6;
-      overflow: hidden;
-    }
-    .chip-title {
-      font-weight: 600;
-      display: -webkit-box;
-      -webkit-line-clamp: 2;
-      -webkit-box-orient: vertical;
-      overflow: hidden;
-    }
-    .chip-sub {
-      font-size: 9px;
-      color: rgba(255,255,255,0.4);
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
+    .era-divider-label{
+      font-size:12px;color:rgba(255,255,255,0.5);
+      text-transform:uppercase;letter-spacing:.08em;
     }
 
-    /* ── Phase divider ─────────────────────────────────────────────────── */
-    .phase-divider {
-      display: flex;
-      align-items: center;
-      background: rgba(255,255,255,0.03);
-      border-top: 1px solid rgba(255,255,255,0.1);
-      border-bottom: 1px solid rgba(255,255,255,0.1);
-      padding: 6px 0;
-      position: sticky;
-      top: 52px;
-      z-index: 40;
+    /* ── Events floating area ──────────────────────────────────────────── */
+    .events-area{
+      position:relative;
+      width:100%;
+      padding:40px 0 60px;
     }
-    .phase-divider .pd-time {
-      width: var(--time-w);
-      min-width: var(--time-w);
-      padding: 0 8px;
-      font-size: 10px;
-      font-weight: 700;
-      color: rgba(255,255,255,0.5);
-      text-align: right;
-      border-right: 2px solid rgba(255,255,255,0.08);
+
+    /* ── Event card ────────────────────────────────────────────────────── */
+    .ev-card{
+      position:absolute;
+      width:200px;
+      cursor:pointer;
+      transition:transform .15s,opacity .15s;
     }
-    .phase-divider .pd-label {
-      flex: 1;
-      padding: 0 12px;
-      font-size: 11px;
-      font-weight: 700;
-      color: rgba(255,255,255,0.4);
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
+    .ev-card:hover{transform:translateY(-2px);}
+    .ev-card.dimmed{opacity:.12;}
+
+    .ev-dot{
+      width:12px;height:12px;border-radius:50%;
+      display:inline-block;margin-right:6px;
+      vertical-align:middle;flex-shrink:0;
+    }
+    .ev-title{
+      font-size:12px;font-weight:600;
+      color:#e8eaf6;line-height:1.3;
+      display:inline;vertical-align:middle;
+    }
+    .ev-sub{
+      font-size:10px;color:rgba(255,255,255,0.38);
+      margin-top:3px;line-height:1.3;
+      display:-webkit-box;-webkit-line-clamp:2;
+      -webkit-box-orient:vertical;overflow:hidden;
+    }
+    .ev-row-badge{
+      font-size:9px;font-weight:700;
+      text-transform:uppercase;letter-spacing:.06em;
+      opacity:.6;margin-bottom:3px;
+    }
+
+    /* ── Age milestone banner ──────────────────────────────────────────── */
+    .age-banner{
+      width:100%;
+      padding:16px 0;
+      text-align:center;
+      position:relative;
+    }
+    .age-banner::before{
+      content:'';position:absolute;
+      left:5%;right:5%;top:50%;
+      height:1px;background:rgba(255,255,255,0.08);
+    }
+    .age-banner-text{
+      position:relative;display:inline-block;
+      background:rgba(5,7,15,0.8);
+      padding:4px 16px;border-radius:12px;
+      font-size:11px;font-weight:600;
+      color:rgba(255,255,255,0.4);
+      letter-spacing:.06em;text-transform:uppercase;
+      border:1px solid rgba(255,255,255,0.08);
     }
 
     /* ── Detail panel ──────────────────────────────────────────────────── */
-    #panel {
-      display: none;
-      position: fixed;
-      z-index: 300;
-      top: 60px;
-      right: 12px;
-      width: 340px;
-      max-height: 80vh;
-      overflow-y: auto;
-      background: #1a1f2e;
-      border: 1px solid rgba(255,255,255,0.15);
-      border-radius: 12px;
-      padding: 16px;
-      box-shadow: 0 8px 40px rgba(0,0,0,0.8);
+    #panel{
+      display:none;position:fixed;z-index:300;
+      top:64px;right:12px;width:340px;
+      max-height:80vh;overflow-y:auto;
+      background:#1a1f2e;
+      border:1px solid rgba(255,255,255,0.15);
+      border-radius:12px;padding:16px;
+      box-shadow:0 8px 40px rgba(0,0,0,.8);
     }
     @media(max-width:600px){
-      #panel { left:0; right:0; bottom:0; top:auto; width:100%; border-radius:16px 16px 0 0; max-height:60vh; }
+      #panel{left:0;right:0;bottom:0;top:auto;width:100%;
+             border-radius:16px 16px 0 0;max-height:60vh;}
     }
-    #panel-header { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:4px; }
-    #panel-title  { font-size:15px; font-weight:700; color:#fff; margin:0; flex:1; padding-right:8px; line-height:1.3; }
-    #panel-time   { font-size:11px; color:#90caf9; margin:0 0 10px; }
-    #panel-close  { background:none; border:none; color:rgba(255,255,255,0.4); cursor:pointer; font-size:18px; padding:0 4px; }
-    #panel-close:hover { color:#fff; }
-    #panel-body   { font-size:13px; line-height:1.65; color:#b0bec5; }
-    #panel-body img { width:100%; max-height:130px; object-fit:cover; border-radius:8px; margin-bottom:10px; }
-    #panel-body p { margin:0 0 8px; }
-    .india-note { color:#FF9933!important; }
-    #panel-link { display:none; color:#64b5f6; font-size:12px; font-weight:600; text-decoration:none;
-                  margin-top:10px; padding-top:10px; border-top:1px solid rgba(255,255,255,0.1); }
-    #panel-link:hover { text-decoration:underline; }
+    #ph{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px;}
+    #pt{font-size:15px;font-weight:700;color:#fff;margin:0;flex:1;padding-right:8px;line-height:1.3;}
+    #ptime{font-size:11px;color:#90caf9;margin:0 0 10px;}
+    #pc{background:none;border:none;color:rgba(255,255,255,.4);cursor:pointer;font-size:18px;padding:0 4px;}
+    #pc:hover{color:#fff;}
+    #pb{font-size:13px;line-height:1.65;color:#b0bec5;}
+    #pb img{width:100%;max-height:130px;object-fit:cover;border-radius:8px;margin-bottom:10px;}
+    #pb p{margin:0 0 8px;}
+    .in{color:#FF9933!important;}
+    #pl{display:none;color:#64b5f6;font-size:12px;font-weight:600;text-decoration:none;
+        margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,.1);}
+    #pl:hover{text-decoration:underline;}
 
     /* ── Loading ───────────────────────────────────────────────────────── */
-    #loading {
-      position: fixed; inset: 0; z-index: 500;
-      background: #05070f;
-      display: flex; flex-direction: column;
-      align-items: center; justify-content: center;
-      gap: 16px;
+    #loading{
+      position:fixed;inset:0;z-index:500;
+      background:#05070f;
+      display:flex;flex-direction:column;
+      align-items:center;justify-content:center;gap:16px;
     }
-    #loading h1 { font-size: 24px; color: #fff; font-weight: 300; }
-    #loading p  { font-size: 14px; color: rgba(255,255,255,0.4); }
-    #loading-bar { width: 200px; height: 3px; background: rgba(255,255,255,0.1); border-radius: 2px; overflow: hidden; }
-    #loading-fill { height: 100%; background: #64b5f6; width: 0%; transition: width 0.3s; border-radius: 2px; }
+    #loading h1{font-size:28px;color:#fff;font-weight:300;letter-spacing:-1px;}
+    #loading p{font-size:14px;color:rgba(255,255,255,.4);}
+    #lbar{width:220px;height:3px;background:rgba(255,255,255,.08);border-radius:2px;overflow:hidden;}
+    #lfill{height:100%;background:#64b5f6;width:0%;transition:width .3s;border-radius:2px;}
 
-    /* ── Scroll progress bar ───────────────────────────────────────────── */
-    #progress {
-      position: fixed;
-      top: 52px;
-      left: 0;
-      height: 2px;
-      background: #64b5f6;
-      z-index: 150;
-      transition: width 0.1s;
-      pointer-events: none;
+    /* ── Legend ────────────────────────────────────────────────────────── */
+    #legend{
+      position:fixed;bottom:16px;left:16px;z-index:150;
+      background:rgba(5,7,15,0.82);backdrop-filter:blur(8px);
+      border:1px solid rgba(255,255,255,0.08);
+      border-radius:10px;padding:10px 14px;
+      display:flex;flex-direction:column;gap:5px;
     }
+    .leg-item{display:flex;align-items:center;gap:7px;font-size:10px;color:rgba(255,255,255,.55);}
+    .leg-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
   </style>
 </head>
 <body>
-  <!-- Loading screen -->
-  <div id="loading">
-    <h1>Chrono of Life</h1>
-    <p>Loading 1700+ events across 13.8 billion years…</p>
-    <div id="loading-bar"><div id="loading-fill"></div></div>
+
+<!-- Loading -->
+<div id="loading">
+  <h1>Chrono of Life</h1>
+  <p>13.8 billion years of history…</p>
+  <div id="lbar"><div id="lfill"></div></div>
+</div>
+
+<!-- HUD -->
+<div id="hud">
+  <div id="hud-time">Big Bang</div>
+  <div id="hud-age">Planck Epoch</div>
+  <div id="hud-bb"></div>
+  <button class="hud-btn" id="btn-india">🇮🇳 India</button>
+  <button class="hud-btn" id="btn-top">⌂ Start</button>
+</div>
+<div id="prog"></div>
+
+<!-- Main content -->
+<div id="scroll-world"></div>
+
+<!-- Legend -->
+<div id="legend">
+  <div class="leg-item"><div class="leg-dot" style="background:#4caf50"></div>Physical & Natural</div>
+  <div class="leg-item"><div class="leg-dot" style="background:#ff9800"></div>Evolution</div>
+  <div class="leg-item"><div class="leg-dot" style="background:#2196f3"></div>Science & Tech</div>
+  <div class="leg-item"><div class="leg-dot" style="background:#FF9933"></div>India</div>
+  <div class="leg-item"><div class="leg-dot" style="background:#90caf9"></div>World / Asia</div>
+  <div class="leg-item"><div class="leg-dot" style="background:#80cbc4"></div>World / Europe</div>
+  <div class="leg-item"><div class="leg-dot" style="background:#ce93d8"></div>World / America</div>
+</div>
+
+<!-- Detail panel -->
+<div id="panel">
+  <div id="ph">
+    <h2 id="pt"></h2>
+    <button id="pc">✕</button>
   </div>
+  <p id="ptime"></p>
+  <div id="pb"></div>
+  <a id="pl" target="_blank" rel="noopener noreferrer">Read more on Wikipedia ↗</a>
+</div>
 
-  <!-- Scroll progress -->
-  <div id="progress"></div>
-
-  <!-- Controls (fixed top-right) -->
-  <div id="controls">
-    <span id="zoom-display">zoom 1×</span>
-    <button class="ctrl-btn" id="btn-zoom-in">＋ Zoom</button>
-    <button class="ctrl-btn" id="btn-zoom-out">－ Zoom</button>
-    <button class="ctrl-btn" id="btn-india">🇮🇳 India</button>
-    <button class="ctrl-btn" id="btn-reset">⌂ Reset</button>
-  </div>
-
-  <!-- Sticky column header -->
-  <div id="header">
-    <div id="time-col">
-      <div class="current-time" id="hdr-time">—</div>
-      <div class="current-bb"   id="hdr-bb">—</div>
-    </div>
-    <!-- Column headers injected by JS -->
-  </div>
-
-  <!-- Timeline body -->
-  <div id="timeline">
-    <!-- Injected by JS -->
-  </div>
-
-  <!-- Detail panel -->
-  <div id="panel">
-    <div id="panel-header">
-      <h2 id="panel-title"></h2>
-      <button id="panel-close">✕</button>
-    </div>
-    <p id="panel-time"></p>
-    <div id="panel-body"></div>
-    <a id="panel-link" target="_blank" rel="noopener noreferrer">Read more on Wikipedia ↗</a>
-  </div>
-
-  <script src="engine.js"></script>
+<script src="engine.js"></script>
 </body>
 </html>

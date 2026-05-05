@@ -1,138 +1,38 @@
 /**
- * Chrono of Life — engine.js  v3
- * UX redesign: scroll=pan, Ctrl+scroll=zoom, time ruler, staggered labels, tooltips
+ * Chrono of Life — engine.js  v4
+ * Vertical scroll layout: time flows top→bottom, categories as columns.
+ * Native browser scroll = no performance issues.
+ * 1732 events rendered as DOM chips — only visible ones are in viewport.
  */
 
-// ── Canvas setup ──────────────────────────────────────────────────────────────
-const canvas = document.getElementById('c');
-const ctx    = canvas.getContext('2d');
-const tooltip = document.getElementById('tooltip');
-
-function resize() {
-  canvas.width  = window.innerWidth;
-  canvas.height = window.innerHeight;
-  draw();
-}
-window.addEventListener('resize', resize);
-canvas.width  = window.innerWidth;
-canvas.height = window.innerHeight;
-
-// ── State ─────────────────────────────────────────────────────────────────────
-let events      = [];
-let panX        = 0;
-let zoomScale   = 1.5;
-let selEvent    = null;
-let isDragging  = false;
-let lastMouseX  = 0;
-let indiaFilter = false;
-let hoverEvent  = null;
-
-// ── Piecewise axis ────────────────────────────────────────────────────────────
-const SEG = [
-  [-13.8e9, -1e9,    200],
-  [-1e9,    -100e6,  150],
-  [-100e6,  -10e6,   150],
-  [-10e6,   -100e3,  200],
-  [-100e3,  -3000,   150],
-  [-3000,   0,       200],
-  [0,       1500,    80 ],
-  [1500,    2030,    300],
-  [2030,    1e4,     80 ],
-  [1e4,     1e6,     80 ],
-  [1e6,     1e9,     100],
-  [1e9,     1e100,   300],
+// ── Column definitions ────────────────────────────────────────────────────────
+const COLS = [
+  { key:'physical',      label:'Physical\n& Natural', bg:'#e8f5e9', dot:'#4caf50' },
+  { key:'evolution',     label:'Evolution\n& Life',   bg:'#fffde7', dot:'#ff9800' },
+  { key:'science',       label:'Science\n& Tech',     bg:'#e3f2fd', dot:'#2196f3' },
+  { key:'india',         label:'India',               bg:'#1a3a6b', dot:'#FF9933' },
+  { key:'world_asia',    label:'World\nAsia',         bg:'#0d2b5e', dot:'#90caf9' },
+  { key:'world_europe',  label:'World\nEurope',       bg:'#0d2b5e', dot:'#80cbc4' },
+  { key:'world_america', label:'World\nAmerica',      bg:'#0d2b5e', dot:'#ce93d8' },
 ];
-
-const ZONES = (function() {
-  let cum = 0;
-  const raw = SEG.map(([ts,te,w]) => {
-    const z = {tStart:ts, tEnd:te, pxStart:cum, pxEnd:cum+w};
-    cum += w;
-    return z;
-  });
-  let pz = 0;
-  for (const z of raw) {
-    if (0 >= z.tStart && 0 <= z.tEnd) {
-      pz = z.pxStart + (0-z.tStart)/(z.tEnd-z.tStart)*(z.pxEnd-z.pxStart);
-      break;
-    }
-  }
-  return raw.map(z => ({...z, pxStart:z.pxStart-pz, pxEnd:z.pxEnd-pz}));
-})();
-
-function tx(t) {
-  if (t <= ZONES[0].tStart) return ZONES[0].pxStart;
-  if (t >= ZONES[ZONES.length-1].tEnd) return ZONES[ZONES.length-1].pxEnd;
-  for (let i=0; i<ZONES.length; i++) {
-    const z = ZONES[i];
-    const hit = i<ZONES.length-1 ? (t>=z.tStart&&t<z.tEnd) : (t>=z.tStart&&t<=z.tEnd);
-    if (hit) { const f=(t-z.tStart)/(z.tEnd-z.tStart); return z.pxStart+f*(z.pxEnd-z.pxStart); }
-  }
-  return 0;
-}
-function txInv(px) {
-  if (px <= ZONES[0].pxStart) return ZONES[0].tStart;
-  if (px >= ZONES[ZONES.length-1].pxEnd) return ZONES[ZONES.length-1].tEnd;
-  for (let i=0; i<ZONES.length; i++) {
-    const z = ZONES[i];
-    const hit = i<ZONES.length-1 ? (px>=z.pxStart&&px<z.pxEnd) : (px>=z.pxStart&&px<=z.pxEnd);
-    if (hit) { const f=(px-z.pxStart)/(z.pxEnd-z.pxStart); return z.tStart+f*(z.tEnd-z.tStart); }
-  }
-  return 0;
-}
-function sx(t) { return canvas.width/2 + panX + tx(t)*zoomScale; }
-function timeAt(screenPx) { return txInv((screenPx - canvas.width/2 - panX)/zoomScale); }
-
-
-// ── Layout constants ──────────────────────────────────────────────────────────
-const HUD_H    = 44;
-const RULER_H  = 28;
-const LABEL_W  = 148;
-const CONTENT_TOP = HUD_H + RULER_H;
-const DOT_R    = 7;
-
-// Row definitions with proportional weights
-const ROW_DEFS = [
-  { key:'physical',      label:'Physical & Natural', bg:'#e8f5e9', fg:'#1b5e20', dot:'#4caf50', weight:1.0 },
-  { key:'evolution',     label:'Evolution',          bg:'#fffde7', fg:'#5d4037', dot:'#ff9800', weight:1.0 },
-  { key:'science',       label:'Science & Tech',     bg:'#e3f2fd', fg:'#0d47a1', dot:'#2196f3', weight:1.0 },
-  { key:'india',         label:'India',              bg:'#1a3a6b', fg:'#ffffff', dot:'#FF9933', weight:1.4 },
-  { key:'world_asia',    label:'World / Asia',       bg:'#0d2b5e', fg:'#90caf9', dot:'#90caf9', weight:1.4 },
-  { key:'world_europe',  label:'World / Europe',     bg:'#0d2b5e', fg:'#80cbc4', dot:'#80cbc4', weight:0.9 },
-  { key:'world_america', label:'World / America',    bg:'#0d2b5e', fg:'#ce93d8', dot:'#ce93d8', weight:0.9 },
-];
-const TOTAL_WEIGHT = ROW_DEFS.reduce((s,r) => s+r.weight, 0);
-
-function getLayout() {
-  const availH = canvas.height - CONTENT_TOP;
-  const unitH  = availH / TOTAL_WEIGHT;
-  let y = CONTENT_TOP;
-  return ROW_DEFS.map(def => {
-    const h = Math.floor(def.weight * unitH);
-    const row = { ...def, y, height:h, centreY: y + h/2 };
-    y += h;
-    return row;
-  });
-}
 
 // ── Time formatting ───────────────────────────────────────────────────────────
 function fmtTime(t) {
   if (t === 0) return 'Year 0 CE';
   const abs = Math.abs(t);
-  const dir = t < 0 ? ' Ago' : ' From Now';
-  if (abs >= 1e9)  return (abs/1e9).toPrecision(3) + ' Billion Yrs' + dir;
-  if (abs >= 1e6)  return (abs/1e6).toPrecision(3) + ' Million Yrs' + dir;
+  if (abs >= 1e9)  return (abs/1e9).toPrecision(3) + 'B yrs ' + (t<0?'ago':'from now');
+  if (abs >= 1e6)  return (abs/1e6).toPrecision(3) + 'M yrs ' + (t<0?'ago':'from now');
   if (abs >= 1000) return t < 0 ? Math.round(abs)+' BCE' : Math.round(abs)+' CE';
   if (abs >= 1)    return t < 0 ? Math.round(abs)+' BCE' : Math.round(abs)+' CE';
-  return t.toExponential(2) + ' Yrs';
+  return t.toExponential(2) + ' yrs';
 }
 
 function fmtBigBang(t) {
   const since = 13.8e9 + t;
   if (since <= 0) return 'At Big Bang';
-  if (since >= 1e9) return (since/1e9).toPrecision(3) + 'B yrs after BB';
-  if (since >= 1e6) return (since/1e6).toPrecision(3) + 'M yrs after BB';
-  return Math.round(since) + ' yrs after BB';
+  if (since >= 1e9) return (since/1e9).toPrecision(3) + 'B yrs after Big Bang';
+  if (since >= 1e6) return (since/1e6).toPrecision(3) + 'M yrs after Big Bang';
+  return Math.round(since) + ' yrs after Big Bang';
 }
 
 const AGE_TABLE = [
@@ -154,347 +54,216 @@ function getAge(t) {
   return '—';
 }
 
-
-// ── Time ruler tick logic ─────────────────────────────────────────────────────
-function getTickConfig() {
-  // pixels per 1 year at current zoom
-  const pxPerYr = (tx(1) - tx(0)) * zoomScale;
-
-  if (pxPerYr > 80)  return { major:1,       minor:0,      fmt: t => fmtTime(t) };
-  if (pxPerYr > 20)  return { major:5,        minor:1,      fmt: t => fmtTime(t) };
-  if (pxPerYr > 5)   return { major:10,       minor:2,      fmt: t => fmtTime(t) };
-  if (pxPerYr > 1)   return { major:50,       minor:10,     fmt: t => fmtTime(t) };
-  if (pxPerYr > 0.2) return { major:200,      minor:50,     fmt: t => fmtTime(t) };
-  if (pxPerYr > 0.05)return { major:1000,     minor:200,    fmt: t => fmtTime(t) };
-  if (pxPerYr > 0.01)return { major:5000,     minor:1000,   fmt: t => fmtTime(t) };
-  if (pxPerYr > 0.001)return{ major:50000,    minor:10000,  fmt: t => fmtTime(t) };
-  // Very zoomed out — use milestone times
-  return { milestones: true, fmt: fmtTime };
-}
-
-const MILESTONES = [
-  -13.8e9,-10e9,-5e9,-1e9,-500e6,-100e6,-50e6,-10e6,-1e6,
-  -500e3,-100e3,-50e3,-10000,-5000,-1000,-500,-100,0,
-  500,1000,1500,1760,1900,2000,2026,5e9,1e14,1e100
+// ── Phase definitions ─────────────────────────────────────────────────────────
+const PHASES = [
+  { label:'Phase 1 — Cosmic Origins & Deep Time',  from:-13.8e9, to:-10e6  },
+  { label:'Phase 2 — Hominins & Paleolithic',       from:-10e6,   to:-3000  },
+  { label:'Phase 3 — Classical & Medieval',         from:-3000,   to:1500   },
+  { label:'Phase 4 — Modern Era',                   from:1500,    to:2027   },
+  { label:'Phase 5 — Future & Deep Time',           from:2027,    to:1e106  },
 ];
 
-function drawRuler(centreT) {
-  const W = canvas.width;
-  const y = HUD_H;
-  const h = RULER_H;
+// ── State ─────────────────────────────────────────────────────────────────────
+let allEvents    = [];
+let zoomLevel    = 1;   // 1=normal, 2=2x density, 0.5=half density
+let indiaFilter  = false;
+let selEvent     = null;
 
-  // Background
-  ctx.fillStyle = 'rgba(255,255,255,0.04)';
-  ctx.fillRect(LABEL_W, y, W-LABEL_W, h);
-  ctx.strokeStyle = 'rgba(255,255,255,0.08)';
-  ctx.lineWidth = 1;
-  ctx.beginPath(); ctx.moveTo(LABEL_W,y+h); ctx.lineTo(W,y+h); ctx.stroke();
+// ── CSS variable for time column width ────────────────────────────────────────
+const TIME_W = 110;
+document.documentElement.style.setProperty('--time-w', TIME_W + 'px');
 
-  const cfg = getTickConfig();
-  ctx.fillStyle = 'rgba(255,255,255,0.55)';
-  ctx.font = '10px system-ui,sans-serif';
-  ctx.textBaseline = 'middle';
-
-  if (cfg.milestones) {
-    // Draw milestone ticks
-    for (const t of MILESTONES) {
-      const x = sx(t);
-      if (x < LABEL_W || x > W) continue;
-      ctx.strokeStyle = 'rgba(255,255,255,0.35)';
-      ctx.lineWidth = 1;
-      ctx.beginPath(); ctx.moveTo(x, y+h-10); ctx.lineTo(x, y+h); ctx.stroke();
-      ctx.fillStyle = 'rgba(255,255,255,0.55)';
-      ctx.textAlign = 'center';
-      const lbl = cfg.fmt(t);
-      if (lbl.length < 20) ctx.fillText(lbl, x, y+h/2-2);
-    }
-    ctx.textAlign = 'left';
-    return;
-  }
-
-  // Regular ticks
-  const { major, minor, fmt } = cfg;
-  const tLeft  = timeAt(LABEL_W);
-  const tRight = timeAt(W);
-
-  // Snap to grid
-  const startMajor = Math.floor(tLeft / major) * major;
-  const endMajor   = Math.ceil(tRight / major) * major;
-
-  // Minor ticks
-  if (minor > 0) {
-    const startMinor = Math.floor(tLeft / minor) * minor;
-    ctx.strokeStyle = 'rgba(255,255,255,0.15)';
-    ctx.lineWidth = 1;
-    for (let t = startMinor; t <= endMajor; t += minor) {
-      const x = sx(t);
-      if (x < LABEL_W || x > W) continue;
-      ctx.beginPath(); ctx.moveTo(x, y+h-5); ctx.lineTo(x, y+h); ctx.stroke();
-    }
-  }
-
-  // Major ticks + labels
-  ctx.strokeStyle = 'rgba(255,255,255,0.4)';
-  ctx.lineWidth = 1;
-  let lastLabelX = -999;
-  for (let t = startMajor; t <= endMajor; t += major) {
-    const x = sx(t);
-    if (x < LABEL_W || x > W) continue;
-    ctx.beginPath(); ctx.moveTo(x, y+4); ctx.lineTo(x, y+h); ctx.stroke();
-    const lbl = fmt(t);
-    const lw = ctx.measureText(lbl).width;
-    if (x - lastLabelX > lw + 8) {
-      ctx.fillStyle = 'rgba(255,255,255,0.6)';
-      ctx.textAlign = 'center';
-      ctx.fillText(lbl, x, y + h/2);
-      lastLabelX = x;
-    }
-  }
-  ctx.textAlign = 'left';
+// ── Build column headers ──────────────────────────────────────────────────────
+function buildHeader() {
+  const hdr = document.getElementById('header');
+  COLS.forEach(col => {
+    const div = document.createElement('div');
+    div.className = 'col-header';
+    div.style.background = col.bg + '22';
+    div.style.color = col.dot;
+    div.textContent = col.label.replace('\n', ' ');
+    hdr.appendChild(div);
+  });
 }
 
+// ── Group events by time bucket ───────────────────────────────────────────────
+// Each "era band" represents a time bucket. We group nearby events together.
+function groupEvents(events, zoom) {
+  if (!events.length) return [];
 
-// ── Main draw ─────────────────────────────────────────────────────────────────
-function draw() {
-  const W = canvas.width, H = canvas.height;
-  ctx.clearRect(0, 0, W, H);
+  // Sort by time
+  const sorted = [...events].sort((a,b) => a.time - b.time);
 
-  const layout   = getLayout();
-  const centreT  = timeAt(W/2);
-  const showLbls = zoomScale >= 1.0;
+  // Define bucket sizes based on time range
+  // Each bucket = one row in the timeline
+  // Bucket size adapts to zoom level
+  const buckets = [];
 
-  // ── Row backgrounds ──────────────────────────────────────────────────────
-  for (const row of layout) {
-    ctx.fillStyle = row.bg;
-    ctx.fillRect(LABEL_W, row.y, W-LABEL_W, row.height);
-    // Subtle centre line
-    ctx.strokeStyle = 'rgba(0,0,0,0.08)';
-    ctx.lineWidth = 1;
-    ctx.beginPath(); ctx.moveTo(LABEL_W, row.centreY); ctx.lineTo(W, row.centreY); ctx.stroke();
-  }
+  // Use the phase boundaries to create natural groupings
+  // Within each phase, group events that are "close" in time
+  const phases = [
+    { from:-13.8e9, to:-1e9,    bucketSize: 200e6 / zoom },  // 200M yr buckets
+    { from:-1e9,    to:-100e6,  bucketSize: 20e6  / zoom },  // 20M yr buckets
+    { from:-100e6,  to:-10e6,   bucketSize: 2e6   / zoom },  // 2M yr buckets
+    { from:-10e6,   to:-100e3,  bucketSize: 200e3 / zoom },  // 200K yr buckets
+    { from:-100e3,  to:-3000,   bucketSize: 2000  / zoom },  // 2000 yr buckets
+    { from:-3000,   to:0,       bucketSize: 100   / zoom },  // 100 yr buckets
+    { from:0,       to:1500,    bucketSize: 100   / zoom },  // 100 yr buckets
+    { from:1500,    to:2030,    bucketSize: 10    / zoom },  // 10 yr buckets
+    { from:2030,    to:1e6,     bucketSize: 50    / zoom },  // 50 yr buckets
+    { from:1e6,     to:1e100,   bucketSize: 1e9   / zoom },  // 1B yr buckets
+  ];
 
-  // ── Label column ─────────────────────────────────────────────────────────
-  for (const row of layout) {
-    ctx.fillStyle = row.bg;
-    ctx.fillRect(0, row.y, LABEL_W, row.height);
-    ctx.fillStyle = row.fg;
-    const fs = Math.min(12, Math.max(9, row.height * 0.22));
-    ctx.font = `bold ${fs}px system-ui,sans-serif`;
-    ctx.textBaseline = 'middle';
-    ctx.fillText(row.label, 6, row.centreY);
-  }
+  // Group events into buckets
+  const bucketMap = new Map();
 
-  // Label column border
-  ctx.strokeStyle = 'rgba(0,0,0,0.3)';
-  ctx.lineWidth = 2;
-  ctx.beginPath(); ctx.moveTo(LABEL_W, CONTENT_TOP); ctx.lineTo(LABEL_W, H); ctx.stroke();
-
-  // Row dividers
-  ctx.strokeStyle = 'rgba(0,0,0,0.15)';
-  ctx.lineWidth = 1;
-  for (const row of layout) {
-    ctx.beginPath(); ctx.moveTo(0, row.y+row.height); ctx.lineTo(W, row.y+row.height); ctx.stroke();
-  }
-
-  // ── "You are here" centre line ───────────────────────────────────────────
-  ctx.strokeStyle = 'rgba(255,255,255,0.12)';
-  ctx.lineWidth = 1;
-  ctx.setLineDash([4,4]);
-  ctx.beginPath(); ctx.moveTo(W/2, CONTENT_TOP); ctx.lineTo(W/2, H); ctx.stroke();
-  ctx.setLineDash([]);
-
-  // ── Reference longitude lines ────────────────────────────────────────────
-  const refs = [-13.8e9,-4.6e9,-3.8e9,-252e6,-66e6,-2.8e6,-10000,0,1500,1760,1947,2026];
-  ctx.strokeStyle = 'rgba(255,255,255,0.05)';
-  ctx.lineWidth = 1;
-  for (const t of refs) {
-    const x = sx(t);
-    if (x < LABEL_W || x > W) continue;
-    ctx.beginPath(); ctx.moveTo(x, CONTENT_TOP); ctx.lineTo(x, H); ctx.stroke();
-  }
-
-  // ── Events ───────────────────────────────────────────────────────────────
-  // Collect visible events per row for staggered labels
-  const visibleByRow = {};
-  for (const row of layout) visibleByRow[row.key] = [];
-
-  for (const ev of events) {
-    const x = sx(ev.time);
-    if (x < LABEL_W - DOT_R || x > W + DOT_R) continue;
-    const row = layout.find(r => r.key === ev.row);
-    if (!row) continue;
-    visibleByRow[row.key].push({ ev, x, row });
-  }
-
-  // Draw connectors first (below dots)
-  for (const row of layout) {
-    for (const { ev, x } of visibleByRow[row.key]) {
-      const isSel = selEvent && selEvent.time===ev.time && selEvent.title===ev.title;
-      ctx.save();
-      if (indiaFilter && !ev.india) ctx.globalAlpha = 0.1;
-      ctx.strokeStyle = row.dot + '40';
-      ctx.lineWidth = 1;
-      ctx.setLineDash([2,3]);
-      ctx.beginPath();
-      ctx.moveTo(x, row.centreY - DOT_R - 2);
-      ctx.lineTo(x, row.y + row.height - 2);
-      ctx.stroke();
-      ctx.setLineDash([]);
-      ctx.restore();
+  for (const ev of sorted) {
+    // Find which phase this event belongs to
+    let bs = 1e9;
+    for (const ph of phases) {
+      if (ev.time >= ph.from && ev.time < ph.to) { bs = ph.bucketSize; break; }
     }
-  }
-
-  // Draw dots
-  for (const row of layout) {
-    for (const { ev, x } of visibleByRow[row.key]) {
-      const isSel = selEvent && selEvent.time===ev.time && selEvent.title===ev.title;
-      const isHov = hoverEvent && hoverEvent.time===ev.time && hoverEvent.title===ev.title;
-      ctx.save();
-      if (indiaFilter && !ev.india) ctx.globalAlpha = 0.1;
-      const r = isSel ? DOT_R+3 : isHov ? DOT_R+2 : DOT_R;
-      ctx.beginPath();
-      ctx.arc(x, row.centreY, r, 0, Math.PI*2);
-      ctx.fillStyle = isSel ? '#ffffff' : row.dot;
-      ctx.fill();
-      if (isSel || isHov) {
-        ctx.strokeStyle = row.dot;
-        ctx.lineWidth = 2;
-        ctx.stroke();
-      }
-      ctx.restore();
+    const bucketKey = Math.floor(ev.time / bs) * bs;
+    if (!bucketMap.has(bucketKey)) {
+      bucketMap.set(bucketKey, { time: bucketKey, events: [] });
     }
+    bucketMap.get(bucketKey).events.push(ev);
   }
 
-  // Draw staggered labels
-  if (showLbls) {
-    ctx.font = '9px system-ui,sans-serif';
-    for (const row of layout) {
-      const items = visibleByRow[row.key];
-      // Sort by x to assign stagger
-      const sorted = [...items].sort((a,b) => a.x - b.x);
-      let lastX = -999, lastY = -999;
-      for (let i = 0; i < sorted.length; i++) {
-        const { ev, x } = sorted[i];
-        if (x < LABEL_W + 4) continue;
-        // Skip if too close to previous label
-        if (x - lastX < 14) continue;
-
-        const lbl = ev.title.length > 22 ? ev.title.substring(0,20)+'…' : ev.title;
-        const lw  = ctx.measureText(lbl).width + 6;
-
-        // Stagger: alternate above/below centre
-        const above = (i % 2 === 0);
-        const ly = above ? row.centreY - DOT_R - 14 : row.centreY + DOT_R + 14;
-
-        // Label background pill
-        ctx.save();
-        if (indiaFilter && !ev.india) ctx.globalAlpha = 0.1;
-        ctx.fillStyle = 'rgba(5,7,15,0.65)';
-        ctx.beginPath();
-        ctx.roundRect(x - lw/2, ly - 7, lw, 14, 3);
-        ctx.fill();
-
-        // Label text
-        const isLight = row.fg === '#ffffff' || row.fg === '#90caf9' || row.fg === '#80cbc4' || row.fg === '#ce93d8';
-        ctx.fillStyle = isLight ? 'rgba(255,255,255,0.85)' : row.fg;
-        ctx.textBaseline = 'middle';
-        ctx.textAlign = 'center';
-        ctx.fillText(lbl, x, ly);
-        ctx.textAlign = 'left';
-        ctx.restore();
-
-        lastX = x + lw/2;
-        lastY = ly;
-      }
-    }
-  }
-
-  // ── Time ruler ───────────────────────────────────────────────────────────
-  drawRuler(centreT);
-
-  // ── HUD ──────────────────────────────────────────────────────────────────
-  drawHUD(centreT, W);
+  // Convert to sorted array
+  return Array.from(bucketMap.values()).sort((a,b) => a.time - b.time);
 }
 
+// ── Render timeline ───────────────────────────────────────────────────────────
+function renderTimeline() {
+  const container = document.getElementById('timeline');
+  container.innerHTML = '';
 
-// ── HUD ───────────────────────────────────────────────────────────────────────
-function drawHUD(centreT, W) {
-  // Background
-  ctx.fillStyle = 'rgba(5,7,15,0.94)';
-  ctx.fillRect(0, 0, W, HUD_H);
-  ctx.strokeStyle = 'rgba(255,255,255,0.07)';
-  ctx.lineWidth = 1;
-  ctx.beginPath(); ctx.moveTo(0,HUD_H); ctx.lineTo(W,HUD_H); ctx.stroke();
+  const buckets = groupEvents(allEvents, zoomLevel);
+  let lastPhaseIdx = -1;
 
-  ctx.textBaseline = 'middle';
+  for (const bucket of buckets) {
+    const t = bucket.time;
 
-  // ── Left: nav arrows + time label ────────────────────────────────────────
-  // Left arrow button
-  drawBtn(8, 8, 28, HUD_H-16, '◄', '#1e2a3a', '#64b5f6');
+    // Phase divider
+    const phaseIdx = PHASES.findIndex(p => t >= p.from && t < p.to);
+    if (phaseIdx !== lastPhaseIdx && phaseIdx >= 0) {
+      lastPhaseIdx = phaseIdx;
+      const div = document.createElement('div');
+      div.className = 'phase-divider';
+      div.innerHTML = `
+        <div class="pd-time">${fmtTime(t)}</div>
+        <div class="pd-label">${PHASES[phaseIdx].label}</div>
+      `;
+      container.appendChild(div);
+    }
 
-  // Time label
-  ctx.fillStyle = '#ffffff';
-  ctx.font = 'bold 14px system-ui,sans-serif';
-  ctx.fillText(fmtTime(centreT), 44, HUD_H/2 - 6);
+    // Era band
+    const band = document.createElement('div');
+    band.className = 'era-band';
 
-  // Age badge
-  const age = getAge(centreT);
-  const ageW = ctx.measureText(age).width + 14;
-  ctx.fillStyle = 'rgba(100,181,246,0.18)';
-  ctx.beginPath(); ctx.roundRect(44, HUD_H/2 + 2, ageW, 16, 8); ctx.fill();
-  ctx.fillStyle = '#90caf9';
-  ctx.font = '10px system-ui,sans-serif';
-  ctx.textAlign = 'center';
-  ctx.fillText(age, 44 + ageW/2, HUD_H/2 + 10);
-  ctx.textAlign = 'left';
+    // Time label
+    const timeDiv = document.createElement('div');
+    timeDiv.className = 'era-time';
+    timeDiv.innerHTML = `
+      <span class="t-main">${fmtTime(t)}</span>
+      <span class="t-age">${getAge(t)}</span>
+    `;
+    band.appendChild(timeDiv);
 
-  // From Big Bang (small, below time)
-  ctx.fillStyle = 'rgba(255,200,50,0.6)';
-  ctx.font = '9px system-ui,sans-serif';
-  ctx.fillText(fmtBigBang(centreT), 44 + ageW + 8, HUD_H/2 + 10);
+    // Event cells
+    const cells = document.createElement('div');
+    cells.className = 'era-cells';
 
-  // Right arrow button
-  drawBtn(44 + ageW + 8 + ctx.measureText(fmtBigBang(centreT)).width + 8, 8, 28, HUD_H-16, '►', '#1e2a3a', '#64b5f6');
+    COLS.forEach(col => {
+      const cell = document.createElement('div');
+      cell.className = 'era-cell';
+      cell.style.background = col.bg + '18';
 
-  // ── Right: zoom + buttons ─────────────────────────────────────────────────
-  const btnRight = W - 8;
+      const colEvents = bucket.events.filter(e => e.row === col.key);
+      colEvents.forEach(ev => {
+        const chip = makeChip(ev, col);
+        cell.appendChild(chip);
+      });
 
-  // ? help button (click handled in click listener)
-  drawBtn(btnRight-30, 8, 28, HUD_H-16, '?', '#1e2a3a', '#888');
+      cells.appendChild(cell);
+    });
 
-  // India toggle
-  const indiaLabel = indiaFilter ? '🇮🇳 ON' : '🇮🇳 India';
-  const indiaBg = indiaFilter ? '#3a2000' : '#1e2a3a';
-  const indiaFg = indiaFilter ? '#FF9933' : '#aaa';
-  drawBtn(btnRight-120, 8, 82, HUD_H-16, indiaLabel, indiaBg, indiaFg);
-
-  // Reset button
-  drawBtn(btnRight-200, 8, 72, HUD_H-16, '⌂ Reset', '#1e2a3a', '#64b5f6');
-
-  // Zoom indicator
-  ctx.fillStyle = 'rgba(255,255,255,0.35)';
-  ctx.font = '10px system-ui,sans-serif';
-  ctx.textAlign = 'right';
-  ctx.fillText('zoom ' + zoomScale.toFixed(1) + 'x', btnRight-208, HUD_H/2);
-  ctx.textAlign = 'left';
-
-  // ── Label column header ───────────────────────────────────────────────────
-  ctx.fillStyle = 'rgba(255,255,255,0.4)';
-  ctx.font = 'bold 9px system-ui,sans-serif';
-  ctx.fillText('CATEGORY', 4, HUD_H/2);
+    band.appendChild(cells);
+    container.appendChild(band);
+  }
 }
 
-function drawBtn(x, y, w, h, lbl, bg, fg) {
-  ctx.fillStyle = bg;
-  ctx.strokeStyle = 'rgba(255,255,255,0.12)';
-  ctx.lineWidth = 1;
-  ctx.beginPath(); ctx.roundRect(x,y,w,h,4); ctx.fill(); ctx.stroke();
-  ctx.fillStyle = fg;
-  ctx.font = '11px system-ui,sans-serif';
-  ctx.textBaseline = 'middle';
-  ctx.textAlign = 'center';
-  ctx.fillText(lbl, x+w/2, y+h/2);
-  ctx.textAlign = 'left';
+function makeChip(ev, col) {
+  const chip = document.createElement('div');
+  chip.className = 'event-chip' + (indiaFilter && !ev.india ? ' dimmed' : '');
+  chip.dataset.time  = ev.time;
+  chip.dataset.title = ev.title;
+  chip.dataset.row   = ev.row;
+
+  const dot = document.createElement('div');
+  dot.className = 'chip-dot';
+  dot.style.background = col.dot;
+
+  const text = document.createElement('div');
+  text.className = 'chip-text';
+
+  const title = document.createElement('div');
+  title.className = 'chip-title';
+  title.textContent = ev.title;
+
+  text.appendChild(title);
+
+  if (ev.india && ev.row !== 'india') {
+    const sub = document.createElement('div');
+    sub.className = 'chip-sub';
+    sub.style.color = '#FF9933';
+    sub.textContent = ev.india;
+    text.appendChild(sub);
+  } else if (ev.world && !ev.row.startsWith('world')) {
+    const sub = document.createElement('div');
+    sub.className = 'chip-sub';
+    sub.textContent = ev.world;
+    text.appendChild(sub);
+  }
+
+  chip.appendChild(dot);
+  chip.appendChild(text);
+
+  chip.addEventListener('click', e => {
+    e.stopPropagation();
+    showPanel(ev);
+  });
+
+  return chip;
+}
+
+// ── Scroll-driven header update ───────────────────────────────────────────────
+function updateHeader() {
+  // Find the era band currently at the top of the viewport
+  const bands = document.querySelectorAll('.era-band');
+  const scrollY = window.scrollY + 60; // account for header
+
+  let currentBand = null;
+  for (const band of bands) {
+    const rect = band.getBoundingClientRect();
+    if (rect.top <= 60) currentBand = band;
+    else break;
+  }
+
+  if (currentBand) {
+    const timeEl = currentBand.querySelector('.t-main');
+    const t = parseFloat(currentBand.querySelector('.era-time')?.dataset?.t || '0');
+    if (timeEl) {
+      document.getElementById('hdr-time').textContent = timeEl.textContent;
+      document.getElementById('hdr-bb').textContent = '';
+    }
+  }
+
+  // Update scroll progress bar
+  const total = document.body.scrollHeight - window.innerHeight;
+  const pct = total > 0 ? (window.scrollY / total * 100) : 0;
+  document.getElementById('progress').style.width = pct + '%';
 }
 
 // ── Detail panel ──────────────────────────────────────────────────────────────
@@ -505,26 +274,18 @@ const pClose = document.getElementById('panel-close');
 const pLink  = document.getElementById('panel-link');
 const pTime  = document.getElementById('panel-time');
 
-pClose.addEventListener('click', () => {
-  panel.style.display = 'none';
-  selEvent = null;
-  draw();
+pClose.addEventListener('click', () => { panel.style.display = 'none'; selEvent = null; });
+document.addEventListener('click', e => {
+  if (panel.style.display === 'block' && !panel.contains(e.target)) {
+    panel.style.display = 'none'; selEvent = null;
+  }
 });
 
-function showPanel(ev, anchorX) {
+function showPanel(ev) {
   selEvent = ev;
   pTitle.textContent = ev.title;
-  pTime.textContent  = fmtTime(ev.time) + (ev.age ? ' · ' + ev.age : '');
+  pTime.textContent  = fmtTime(ev.time) + (ev.age ? ' · ' + ev.age : '') + ' · ' + getAge(ev.time);
   pBody.innerHTML    = '<em style="color:#555">Loading…</em>';
-
-  const W = canvas.width, H = canvas.height;
-  const pw = Math.min(360, W - 20);
-  let left = anchorX + 16;
-  if (left + pw > W - 8) left = anchorX - pw - 16;
-  if (left < 8) left = 8;
-  panel.style.width   = pw + 'px';
-  panel.style.left    = left + 'px';
-  panel.style.top     = '60px';
   panel.style.display = 'block';
 
   if (ev.link) {
@@ -546,7 +307,6 @@ function showPanel(ev, anchorX) {
     pLink.style.display = 'none';
     pBody.innerHTML = buildFallback(ev);
   }
-  draw();
 }
 
 function buildFallback(ev) {
@@ -557,183 +317,40 @@ function buildFallback(ev) {
   return h;
 }
 
-
-// ── Input handling ────────────────────────────────────────────────────────────
-
-// SCROLL = PAN (not zoom). Ctrl+scroll = zoom.
-canvas.addEventListener('wheel', e => {
-  e.preventDefault();
-  if (e.ctrlKey || e.metaKey) {
-    // Zoom at cursor
-    const f = e.deltaY < 0 ? 1.12 : 1/1.12;
-    const ox = e.clientX;
-    const lp = (ox - canvas.width/2 - panX) / zoomScale;
-    zoomScale = Math.max(0.3, Math.min(2000, zoomScale * f));
-    panX = ox - canvas.width/2 - lp * zoomScale;
-  } else {
-    // Pan horizontally — use deltaX for trackpad, deltaY for mouse wheel
-    const delta = e.deltaX !== 0 ? -e.deltaX : -e.deltaY;
-    panX += delta;
-  }
-  clamp();
-  draw();
-}, { passive: false });
-
-// Drag to pan
-canvas.addEventListener('mousedown', e => {
-  if (e.button === 0) { isDragging = true; lastMouseX = e.clientX; canvas.style.cursor = 'grabbing'; }
+// ── Controls ──────────────────────────────────────────────────────────────────
+document.getElementById('btn-zoom-in').addEventListener('click', () => {
+  zoomLevel = Math.min(8, zoomLevel * 2);
+  document.getElementById('zoom-display').textContent = 'zoom ' + zoomLevel + '×';
+  renderTimeline();
 });
-canvas.addEventListener('mousemove', e => {
-  if (isDragging) {
-    panX += e.clientX - lastMouseX;
-    lastMouseX = e.clientX;
-    clamp();
-    draw();
-    return;
-  }
-  // Hover detection
-  const layout = getLayout();
-  let found = null;
-  for (const ev of events) {
-    const x = sx(ev.time);
-    if (x < LABEL_W - DOT_R || x > canvas.width + DOT_R) continue;
-    const row = layout.find(r => r.key === ev.row);
-    if (!row) continue;
-    const dist = Math.hypot(e.clientX - x, e.clientY - row.centreY);
-    if (dist <= DOT_R + 4) { found = ev; break; }
-  }
-  if (found !== hoverEvent) {
-    hoverEvent = found;
-    canvas.style.cursor = found ? 'pointer' : 'grab';
-    if (found) {
-      tooltip.style.display = 'block';
-      tooltip.style.left = (e.clientX + 12) + 'px';
-      tooltip.style.top  = (e.clientY - 30) + 'px';
-      tooltip.innerHTML  = `<strong>${found.title}</strong><br><span style="color:#90caf9">${fmtTime(found.time)}</span>`;
-    } else {
-      tooltip.style.display = 'none';
-    }
-    draw();
-  } else if (found) {
-    tooltip.style.left = (e.clientX + 12) + 'px';
-    tooltip.style.top  = (e.clientY - 30) + 'px';
-  }
+document.getElementById('btn-zoom-out').addEventListener('click', () => {
+  zoomLevel = Math.max(0.25, zoomLevel / 2);
+  document.getElementById('zoom-display').textContent = 'zoom ' + zoomLevel + '×';
+  renderTimeline();
 });
-canvas.addEventListener('mouseup',    () => { isDragging = false; canvas.style.cursor = 'grab'; });
-canvas.addEventListener('mouseleave', () => { isDragging = false; tooltip.style.display = 'none'; hoverEvent = null; });
-
-// Double-click to zoom in
-canvas.addEventListener('dblclick', e => {
-  if (e.clientY < HUD_H) return;
-  const f = 2;
-  const ox = e.clientX;
-  const lp = (ox - canvas.width/2 - panX) / zoomScale;
-  zoomScale = Math.min(2000, zoomScale * f);
-  panX = ox - canvas.width/2 - lp * zoomScale;
-  clamp();
-  draw();
+document.getElementById('btn-india').addEventListener('click', function() {
+  indiaFilter = !indiaFilter;
+  this.classList.toggle('active', indiaFilter);
+  // Update chip visibility
+  document.querySelectorAll('.event-chip').forEach(chip => {
+    const row = chip.dataset.row;
+    // We need to know if this event has india data — store it
+    chip.classList.toggle('dimmed', indiaFilter && !chip.dataset.india);
+  });
+});
+document.getElementById('btn-reset').addEventListener('click', () => {
+  window.scrollTo({ top: 0, behavior: 'smooth' });
 });
 
-// Click handler
-canvas.addEventListener('click', e => {
-  const W = canvas.width;
-
-  // HUD buttons
-  if (e.clientY < HUD_H) {
-    // Left arrow
-    if (e.clientX >= 8 && e.clientX <= 36) { panX += 200; clamp(); draw(); return; }
-    // Reset
-    if (e.clientX >= W-200 && e.clientX <= W-128) { resetView(); return; }
-    // India toggle
-    if (e.clientX >= W-120 && e.clientX <= W-38) { indiaFilter = !indiaFilter; draw(); return; }
-    // Help
-    if (e.clientX >= W-36 && e.clientX <= W-8) { if (window.showHelp) window.showHelp(); return; }
-    return;
-  }
-
-  // Close panel on click outside
-  if (panel.style.display === 'block') {
-    const pr = panel.getBoundingClientRect();
-    if (e.clientX < pr.left || e.clientX > pr.right || e.clientY < pr.top || e.clientY > pr.bottom) {
-      panel.style.display = 'none'; selEvent = null; draw(); return;
-    }
-    return;
-  }
-
-  // Hit test events
-  const layout = getLayout();
-  let best = null, bd = DOT_R + 8;
-  for (const ev of events) {
-    const x = sx(ev.time);
-    if (x < LABEL_W) continue;
-    const row = layout.find(r => r.key === ev.row);
-    if (!row) continue;
-    const d = Math.hypot(e.clientX - x, e.clientY - row.centreY);
-    if (d < bd) { bd = d; best = ev; }
-  }
-  if (best) showPanel(best, sx(best.time));
-});
-
-// Touch
-let ltx = 0, lpd = 0, pinch = false;
-canvas.addEventListener('touchstart', e => {
-  e.preventDefault();
-  if (e.touches.length === 2) {
-    pinch = true;
-    lpd = Math.hypot(e.touches[0].clientX-e.touches[1].clientX, e.touches[0].clientY-e.touches[1].clientY);
-  } else {
-    ltx = e.touches[0].clientX;
-  }
-}, { passive: false });
-canvas.addEventListener('touchmove', e => {
-  e.preventDefault();
-  if (pinch && e.touches.length === 2) {
-    const d = Math.hypot(e.touches[0].clientX-e.touches[1].clientX, e.touches[0].clientY-e.touches[1].clientY);
-    const mx = (e.touches[0].clientX + e.touches[1].clientX) / 2;
-    const lp = (mx - canvas.width/2 - panX) / zoomScale;
-    zoomScale = Math.max(0.3, Math.min(2000, zoomScale * d/lpd));
-    panX = mx - canvas.width/2 - lp * zoomScale;
-    lpd = d; clamp(); draw();
-  } else if (e.touches.length === 1) {
-    panX += e.touches[0].clientX - ltx;
-    ltx = e.touches[0].clientX;
-    clamp(); draw();
-  }
-}, { passive: false });
-canvas.addEventListener('touchend', e => { if (e.touches.length < 2) pinch = false; });
-
-// Keyboard
+// Keyboard navigation
 window.addEventListener('keydown', e => {
-  const step = 120;
-  if (e.key === 'ArrowLeft')       { panX += step; clamp(); draw(); }
-  else if (e.key === 'ArrowRight') { panX -= step; clamp(); draw(); }
-  else if (e.key === '+' || e.key === '=') {
-    zoomScale = Math.min(2000, zoomScale * 1.25);
-    clamp(); draw();
-  }
-  else if (e.key === '-') {
-    zoomScale = Math.max(0.3, zoomScale / 1.25);
-    clamp(); draw();
-  }
-  else if (e.key === 'Home')   { resetView(); }
-  else if (e.key === 'Escape') { panel.style.display='none'; selEvent=null; draw(); }
+  if (e.key === 'Escape') { panel.style.display = 'none'; selEvent = null; }
+  if (e.key === 'Home')   { window.scrollTo({ top: 0, behavior: 'smooth' }); }
+  if (e.key === 'End')    { window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' }); }
 });
 
-// ── Clamp & reset ─────────────────────────────────────────────────────────────
-function clamp() {
-  const W = canvas.width;
-  const lp = tx(-13.8e9), rp = tx(1e100);
-  const mn = -(W/2) - lp*zoomScale;
-  const mx =  (W/2) - rp*zoomScale;
-  panX = mn < mx ? Math.max(mn, Math.min(mx, panX)) : mn;
-}
-
-function resetView() {
-  zoomScale = 1.5;
-  panX = -tx(1800) * zoomScale;
-  clamp();
-  draw();
-}
+// Scroll listener for header update
+window.addEventListener('scroll', updateHeader, { passive: true });
 
 // ── Data loading ──────────────────────────────────────────────────────────────
 const BASE = (function() {
@@ -742,17 +359,49 @@ const BASE = (function() {
   return dir || '';
 })();
 
+const fill = document.getElementById('loading-fill');
+
 fetch(BASE + '/data.json')
-  .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+  .then(r => {
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    // Stream progress
+    const total = parseInt(r.headers.get('content-length') || '0');
+    if (total && r.body) {
+      const reader = r.body.getReader();
+      let received = 0;
+      const chunks = [];
+      function pump() {
+        return reader.read().then(({ done, value }) => {
+          if (done) {
+            const blob = new Blob(chunks);
+            return blob.text().then(text => JSON.parse(text));
+          }
+          chunks.push(value);
+          received += value.length;
+          if (fill) fill.style.width = Math.min(95, received/total*100) + '%';
+          return pump();
+        });
+      }
+      return pump();
+    }
+    return r.json();
+  })
   .then(d => {
-    events = Array.isArray(d) ? d : [];
-    console.log('[chrono] Loaded', events.length, 'events');
-    document.getElementById('loading').style.display = 'none';
-    resetView();
+    allEvents = Array.isArray(d) ? d : [];
+    // Store india flag on events for filter
+    allEvents.forEach(ev => { if (!ev.india) ev._noIndia = true; });
+    console.log('[chrono] Loaded', allEvents.length, 'events');
+    if (fill) fill.style.width = '100%';
+    setTimeout(() => {
+      document.getElementById('loading').style.display = 'none';
+      buildHeader();
+      renderTimeline();
+      updateHeader();
+    }, 200);
   })
   .catch(err => {
-    console.error('[chrono] data.json failed:', err);
-    events = [
+    console.error('[chrono] Failed:', err);
+    allEvents = [
       {time:-13.8e9,title:'Big Bang',row:'physical'},
       {time:-4.6e9, title:'Earth forms',row:'physical'},
       {time:-3.8e9, title:'Abiogenesis',row:'evolution'},
@@ -767,9 +416,7 @@ fetch(BASE + '/data.json')
       {time:2026,   title:'Present',row:'physical'},
     ];
     document.getElementById('loading').style.display = 'none';
-    resetView();
+    buildHeader();
+    renderTimeline();
   });
-
-// Draw immediately
-resetView();
 

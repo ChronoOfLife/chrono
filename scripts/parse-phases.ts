@@ -164,19 +164,22 @@ function parseTableRow(cells: string[]): ChronoEvent[] {
   } else if (!isNaOrEmpty(india)) {
     events.push({ ...base, title: india, row: 'india' });
   } else if (!isNaOrEmpty(world)) {
-    events.push({ ...base, title: world, row: 'world_asia' });
+    events.push({ ...base, title: world, row: classifyWorldRow(world, scale) });
   } else {
-    // All content columns are N/A — skip
     return [];
   }
 
-  // If the primary row is NOT india but india content exists, also emit an india row event
+  // Also emit science as a separate event if it exists alongside physical/evolution
+  if (events.length > 0 && events[0].row !== 'science' && !isNaOrEmpty(science)) {
+    events.push({ ...base, title: science, row: 'science' });
+  }
+
+  // Also emit india event if it exists and primary is not india
   if (events.length > 0 && events[0].row !== 'india' && !isNaOrEmpty(india)) {
     events.push({ ...base, title: india, row: 'india' });
   }
 
-  // If world content exists and primary is not world, also emit world event
-  // Assign to world_asia/europe/america based on keywords in the world text
+  // Also emit world event if it exists and primary is not world
   if (events.length > 0 && !events[0].row.startsWith('world') && !isNaOrEmpty(world)) {
     const worldRow = classifyWorldRow(world, scale);
     events.push({ ...base, title: world, row: worldRow });

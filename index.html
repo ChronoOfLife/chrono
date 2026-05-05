@@ -3,115 +3,351 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Chronology of Life — interactive timeline from Big Bang to Heat Death">
+  <meta name="description" content="Chronology of Life — scroll through 13.8 billion years of history">
   <title>Chrono of Life</title>
+  <link rel="icon" href="favicon.png">
   <style>
-    *, *::before, *::after { box-sizing: border-box; }
-    body { margin:0; padding:0; background:#05070f; overflow:hidden; font-family:system-ui,-apple-system,sans-serif; }
-    canvas { display:block; cursor:grab; touch-action:none; user-select:none; }
-    canvas:active { cursor:grabbing; }
+    /* ── Reset ─────────────────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      background: #05070f;
+      color: #e8eaf6;
+      font-family: system-ui, -apple-system, sans-serif;
+      overflow-x: hidden;
+    }
 
-    /* Detail panel */
+    /* ── Sticky header ─────────────────────────────────────────────────── */
+    #header {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: rgba(5,7,15,0.96);
+      backdrop-filter: blur(8px);
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+      display: flex;
+      align-items: stretch;
+      height: 52px;
+    }
+    #time-col {
+      width: var(--time-w);
+      min-width: var(--time-w);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: 0 8px;
+      border-right: 2px solid rgba(255,255,255,0.08);
+    }
+    #time-col .current-time {
+      font-size: 13px;
+      font-weight: 700;
+      color: #fff;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    #time-col .current-bb {
+      font-size: 9px;
+      color: rgba(255,200,50,0.7);
+      white-space: nowrap;
+    }
+    .col-header {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      font-weight: 700;
+      text-align: center;
+      padding: 4px 2px;
+      border-right: 1px solid rgba(255,255,255,0.06);
+      line-height: 1.2;
+    }
+    .col-header:last-child { border-right: none; }
+
+    /* ── Controls bar ──────────────────────────────────────────────────── */
+    #controls {
+      position: fixed;
+      top: 0;
+      right: 0;
+      z-index: 200;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 10px;
+      height: 52px;
+    }
+    .ctrl-btn {
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.15);
+      color: #e8eaf6;
+      border-radius: 6px;
+      padding: 5px 12px;
+      font-size: 11px;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background 0.15s;
+    }
+    .ctrl-btn:hover { background: rgba(255,255,255,0.15); }
+    .ctrl-btn.active { background: rgba(255,153,51,0.25); border-color: #FF9933; color: #FF9933; }
+    #zoom-display {
+      font-size: 11px;
+      color: #90caf9;
+      white-space: nowrap;
+    }
+
+    /* ── Timeline body ─────────────────────────────────────────────────── */
+    #timeline {
+      display: flex;
+      align-items: flex-start;
+    }
+
+    /* ── Time column ───────────────────────────────────────────────────── */
+    #time-axis {
+      width: var(--time-w);
+      min-width: var(--time-w);
+      position: sticky;
+      left: 0;
+      z-index: 50;
+      background: rgba(5,7,15,0.95);
+      border-right: 2px solid rgba(255,255,255,0.08);
+    }
+
+    /* ── Category columns ──────────────────────────────────────────────── */
+    #columns {
+      flex: 1;
+      display: flex;
+    }
+    .cat-col {
+      flex: 1;
+      border-right: 1px solid rgba(255,255,255,0.05);
+      position: relative;
+      min-width: 0;
+    }
+    .cat-col:last-child { border-right: none; }
+
+    /* ── Era band (time slice row) ─────────────────────────────────────── */
+    .era-band {
+      display: flex;
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+      position: relative;
+    }
+    .era-band:hover { background: rgba(255,255,255,0.015); }
+
+    /* ── Time label in era band ────────────────────────────────────────── */
+    .era-time {
+      width: var(--time-w);
+      min-width: var(--time-w);
+      padding: 6px 8px;
+      font-size: 10px;
+      color: rgba(255,255,255,0.45);
+      text-align: right;
+      line-height: 1.3;
+      border-right: 2px solid rgba(255,255,255,0.08);
+      background: rgba(5,7,15,0.95);
+      position: sticky;
+      left: 0;
+      z-index: 10;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-start;
+      align-items: flex-end;
+    }
+    .era-time .t-main { font-weight: 600; color: rgba(255,255,255,0.65); font-size: 11px; }
+    .era-time .t-age  { font-size: 9px; color: rgba(255,255,255,0.3); margin-top: 2px; }
+
+    /* ── Event cell ────────────────────────────────────────────────────── */
+    .era-cells {
+      flex: 1;
+      display: flex;
+    }
+    .era-cell {
+      flex: 1;
+      padding: 4px 6px;
+      border-right: 1px solid rgba(255,255,255,0.04);
+      min-height: 36px;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+    .era-cell:last-child { border-right: none; }
+
+    /* ── Event chip ────────────────────────────────────────────────────── */
+    .event-chip {
+      display: flex;
+      align-items: flex-start;
+      gap: 5px;
+      cursor: pointer;
+      border-radius: 4px;
+      padding: 3px 5px;
+      transition: background 0.1s;
+      text-decoration: none;
+    }
+    .event-chip:hover { background: rgba(255,255,255,0.08); }
+    .event-chip.dimmed { opacity: 0.15; }
+    .chip-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      margin-top: 3px;
+    }
+    .chip-text {
+      font-size: 11px;
+      line-height: 1.35;
+      color: #e8eaf6;
+      overflow: hidden;
+    }
+    .chip-title {
+      font-weight: 600;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .chip-sub {
+      font-size: 9px;
+      color: rgba(255,255,255,0.4);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* ── Phase divider ─────────────────────────────────────────────────── */
+    .phase-divider {
+      display: flex;
+      align-items: center;
+      background: rgba(255,255,255,0.03);
+      border-top: 1px solid rgba(255,255,255,0.1);
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+      padding: 6px 0;
+      position: sticky;
+      top: 52px;
+      z-index: 40;
+    }
+    .phase-divider .pd-time {
+      width: var(--time-w);
+      min-width: var(--time-w);
+      padding: 0 8px;
+      font-size: 10px;
+      font-weight: 700;
+      color: rgba(255,255,255,0.5);
+      text-align: right;
+      border-right: 2px solid rgba(255,255,255,0.08);
+    }
+    .phase-divider .pd-label {
+      flex: 1;
+      padding: 0 12px;
+      font-size: 11px;
+      font-weight: 700;
+      color: rgba(255,255,255,0.4);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    /* ── Detail panel ──────────────────────────────────────────────────── */
     #panel {
-      display:none; position:fixed; z-index:200;
-      background:#1a1f2e; border:1px solid rgba(255,255,255,0.15);
-      border-radius:12px; padding:16px; color:#e8eaf6;
-      box-shadow:0 8px 40px rgba(0,0,0,0.8);
-      max-height:75vh; overflow-y:auto;
+      display: none;
+      position: fixed;
+      z-index: 300;
+      top: 60px;
+      right: 12px;
+      width: 340px;
+      max-height: 80vh;
+      overflow-y: auto;
+      background: #1a1f2e;
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 12px;
+      padding: 16px;
+      box-shadow: 0 8px 40px rgba(0,0,0,0.8);
     }
     @media(max-width:600px){
-      #panel{ left:0!important;right:0!important;bottom:0!important;
-              top:auto!important;width:100%!important;
-              border-radius:16px 16px 0 0;max-height:55vh; }
+      #panel { left:0; right:0; bottom:0; top:auto; width:100%; border-radius:16px 16px 0 0; max-height:60vh; }
     }
     #panel-header { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:4px; }
     #panel-title  { font-size:15px; font-weight:700; color:#fff; margin:0; flex:1; padding-right:8px; line-height:1.3; }
     #panel-time   { font-size:11px; color:#90caf9; margin:0 0 10px; }
-    #panel-close  { background:none; border:none; color:rgba(255,255,255,0.4); cursor:pointer; font-size:18px; padding:0 4px; min-width:32px; min-height:32px; }
+    #panel-close  { background:none; border:none; color:rgba(255,255,255,0.4); cursor:pointer; font-size:18px; padding:0 4px; }
     #panel-close:hover { color:#fff; }
     #panel-body   { font-size:13px; line-height:1.65; color:#b0bec5; }
     #panel-body img { width:100%; max-height:130px; object-fit:cover; border-radius:8px; margin-bottom:10px; }
     #panel-body p { margin:0 0 8px; }
-    .india-note   { color:#FF9933!important; }
-    #panel-link   { display:none; color:#64b5f6; font-size:12px; font-weight:600; text-decoration:none;
-                    margin-top:10px; padding-top:10px; border-top:1px solid rgba(255,255,255,0.1); }
+    .india-note { color:#FF9933!important; }
+    #panel-link { display:none; color:#64b5f6; font-size:12px; font-weight:600; text-decoration:none;
+                  margin-top:10px; padding-top:10px; border-top:1px solid rgba(255,255,255,0.1); }
     #panel-link:hover { text-decoration:underline; }
 
-    /* Tooltip */
-    #tooltip {
-      display:none; position:fixed; z-index:300;
-      background:rgba(5,7,15,0.92); color:#e8eaf6;
-      padding:6px 10px; border-radius:6px; font-size:12px;
-      pointer-events:none; border:1px solid rgba(255,255,255,0.15);
-      max-width:220px; line-height:1.4;
+    /* ── Loading ───────────────────────────────────────────────────────── */
+    #loading {
+      position: fixed; inset: 0; z-index: 500;
+      background: #05070f;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      gap: 16px;
     }
+    #loading h1 { font-size: 24px; color: #fff; font-weight: 300; }
+    #loading p  { font-size: 14px; color: rgba(255,255,255,0.4); }
+    #loading-bar { width: 200px; height: 3px; background: rgba(255,255,255,0.1); border-radius: 2px; overflow: hidden; }
+    #loading-fill { height: 100%; background: #64b5f6; width: 0%; transition: width 0.3s; border-radius: 2px; }
 
-    /* Loading */
-    #loading { position:fixed; top:50%; left:50%; transform:translate(-50%,-50%);
-               color:rgba(255,255,255,0.4); font-size:14px; pointer-events:none; }
-
-    /* Help overlay */
-    #help {
-      display:none; position:fixed; inset:0; z-index:400;
-      background:rgba(0,0,0,0.75); align-items:center; justify-content:center;
+    /* ── Scroll progress bar ───────────────────────────────────────────── */
+    #progress {
+      position: fixed;
+      top: 52px;
+      left: 0;
+      height: 2px;
+      background: #64b5f6;
+      z-index: 150;
+      transition: width 0.1s;
+      pointer-events: none;
     }
-    #help.visible { display:flex; }
-    #help-box {
-      background:#1a1f2e; border:1px solid rgba(255,255,255,0.15);
-      border-radius:12px; padding:24px; color:#e8eaf6; max-width:380px; width:90%;
-    }
-    #help-box h3 { margin:0 0 16px; font-size:16px; color:#fff; }
-    #help-box table { width:100%; border-collapse:collapse; font-size:13px; }
-    #help-box td { padding:5px 8px; color:#b0bec5; }
-    #help-box td:first-child { color:#90caf9; font-weight:600; white-space:nowrap; }
-    #help-close { margin-top:16px; background:#1e2a3a; border:1px solid rgba(255,255,255,0.15);
-                  color:#e8eaf6; padding:8px 20px; border-radius:6px; cursor:pointer; font-size:13px; }
   </style>
 </head>
 <body>
-  <canvas id="c"></canvas>
+  <!-- Loading screen -->
+  <div id="loading">
+    <h1>Chrono of Life</h1>
+    <p>Loading 1700+ events across 13.8 billion years…</p>
+    <div id="loading-bar"><div id="loading-fill"></div></div>
+  </div>
 
+  <!-- Scroll progress -->
+  <div id="progress"></div>
+
+  <!-- Controls (fixed top-right) -->
+  <div id="controls">
+    <span id="zoom-display">zoom 1×</span>
+    <button class="ctrl-btn" id="btn-zoom-in">＋ Zoom</button>
+    <button class="ctrl-btn" id="btn-zoom-out">－ Zoom</button>
+    <button class="ctrl-btn" id="btn-india">🇮🇳 India</button>
+    <button class="ctrl-btn" id="btn-reset">⌂ Reset</button>
+  </div>
+
+  <!-- Sticky column header -->
+  <div id="header">
+    <div id="time-col">
+      <div class="current-time" id="hdr-time">—</div>
+      <div class="current-bb"   id="hdr-bb">—</div>
+    </div>
+    <!-- Column headers injected by JS -->
+  </div>
+
+  <!-- Timeline body -->
+  <div id="timeline">
+    <!-- Injected by JS -->
+  </div>
+
+  <!-- Detail panel -->
   <div id="panel">
     <div id="panel-header">
       <h2 id="panel-title"></h2>
-      <button id="panel-close" aria-label="Close">✕</button>
+      <button id="panel-close">✕</button>
     </div>
     <p id="panel-time"></p>
     <div id="panel-body"></div>
     <a id="panel-link" target="_blank" rel="noopener noreferrer">Read more on Wikipedia ↗</a>
   </div>
 
-  <div id="tooltip"></div>
-
-  <div id="loading">Loading 1700+ events…</div>
-
-  <div id="help">
-    <div id="help-box">
-      <h3>How to navigate</h3>
-      <table>
-        <tr><td>Scroll / drag</td><td>Pan left/right through time</td></tr>
-        <tr><td>Ctrl + scroll</td><td>Zoom in/out</td></tr>
-        <tr><td>Pinch (touch)</td><td>Zoom in/out</td></tr>
-        <tr><td>Double-click</td><td>Zoom in 2× at that point</td></tr>
-        <tr><td>Click a dot</td><td>Open event details</td></tr>
-        <tr><td>Arrow keys</td><td>Pan left/right</td></tr>
-        <tr><td>+ / −</td><td>Zoom in/out</td></tr>
-        <tr><td>Home</td><td>Reset to modern era</td></tr>
-        <tr><td>Escape</td><td>Close panel</td></tr>
-      </table>
-      <button id="help-close">Got it</button>
-    </div>
-  </div>
-
   <script src="engine.js"></script>
-  <script>
-    document.getElementById('help-close').addEventListener('click', () => {
-      document.getElementById('help').classList.remove('visible');
-    });
-    // Wire ? button in HUD — engine.js calls this
-    window.showHelp = function() {
-      document.getElementById('help').classList.add('visible');
-    };
-  </script>
 </body>
 </html>

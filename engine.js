@@ -81,33 +81,13 @@ function getAge(t) {
   return '—';
 }
 
-// ── Bucket sizes — larger = fewer events per section ─────────────────────────
-const BUCKET_SIZES = [
-  [-13.8e9, -1e9,    1e9   ],  // 1B yr buckets (cosmic)
-  [-1e9,    -100e6,  100e6 ],  // 100M yr buckets
-  [-100e6,  -10e6,   10e6  ],  // 10M yr buckets
-  [-10e6,   -100e3,  1e6   ],  // 1M yr buckets
-  [-100e3,  -3000,   5000  ],  // 5000 yr buckets
-  [-3000,   0,       500   ],  // 500 yr buckets
-  [0,       1500,    500   ],  // 500 yr buckets
-  [1500,    2030,    25    ],  // 25 yr buckets (dense modern era)
-  [2030,    1e6,     200   ],  // 200 yr buckets
-  [1e6,     1e9,     10e6  ],  // 10M yr buckets
-  [1e9,     1e100,   1e9   ],  // 1B yr buckets
-];
-
-function getBucketSize(t) {
-  for (const [from,to,sz] of BUCKET_SIZES) {
-    if (t >= from && t < to) return sz;
-  }
-  return 1e9;
-}
-
+// ── Group by exact timestamp — chronologically correct ───────────────────────
+// Each unique time value gets its own row. Events at the same time
+// appear side-by-side in their category columns. 633 unique timestamps = 633 rows.
 function groupIntoBuckets(events) {
   const map = new Map();
   for (const ev of events) {
-    const sz = getBucketSize(ev.time);
-    const key = Math.floor(ev.time / sz) * sz;
+    const key = ev.time;
     if (!map.has(key)) map.set(key, []);
     map.get(key).push(ev);
   }

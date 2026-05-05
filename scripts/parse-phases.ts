@@ -194,32 +194,33 @@ function parseTableRow(cells: string[]): ChronoEvent[] {
  */
 function classifyWorldRow(worldText: string, scale: string): 'world_asia' | 'world_europe' | 'world_america' {
   const t = worldText.toLowerCase();
-  const s = scale.toLowerCase();
 
-  // America keywords
-  const americaKw = ['america', 'aztec', 'inca', 'maya', 'clovis', 'columbus', 'jamestown',
-    'boston', 'washington', 'us ', 'usa', 'united states', 'canada', 'mexico',
-    'pacific rim', 'kelp highway', 'pre-clovis', 'sahul'];
-  if (americaKw.some(k => t.includes(k))) return 'world_america';
-
-  // Europe keywords
+  // Europe keywords (check first — more specific)
   const europeKw = ['rome', 'roman', 'greek', 'greece', 'europe', 'european', 'britain',
-    'england', 'french', 'france', 'german', 'spain', 'spanish', 'viking',
-    'charlemagne', 'napoleon', 'renaissance', 'reformation', 'crusade',
+    'england', 'english', 'french', 'france', 'german', 'germany', 'spain', 'spanish',
+    'viking', 'charlemagne', 'napoleon', 'renaissance', 'reformation', 'crusade',
     'byzantine', 'ottoman', 'medieval', 'feudal', 'magna carta', 'waterloo',
     'versailles', 'westphalia', 'athens', 'sparta', 'alexander', 'caesar',
     'augustus', 'justinian', 'carolingian', 'frankish', 'gothic', 'vandal',
-    'hun', 'mongol in europe', 'black death', 'plague of justinian'];
+    'hun', 'black death', 'plague of justinian', 'crucifixion', 'jesus',
+    'christianity state', 'church of', 'pope', 'protestant', 'soissons',
+    'actium', 'pharsalus', 'cannae', 'marathon', 'thermopylae', 'salamis',
+    'peloponnesian', 'punic', 'gallic', 'samnite', 'adrianople', 'catalaunian',
+    'spartacus', 'gladiator', 'tiberius', 'caligula', 'claudius', 'nero',
+    'trajan', 'hadrian', 'marcus aurelius', 'diocletian', 'constantine',
+    'theodosius', 'alaric', 'attila', 'clovis', 'charlemagne', 'jesuit',
+    'glorious revolution', 'bill of rights', 'magna carta', 'domesday'];
   if (europeKw.some(k => t.includes(k))) return 'world_europe';
 
-  // Asia keywords (default for most ancient/cosmic events)
-  const asiaKw = ['china', 'chinese', 'japan', 'japanese', 'korea', 'mongol', 'persia',
-    'persian', 'mesopotamia', 'babylon', 'sumeria', 'egypt', 'ottoman',
-    'tang', 'han', 'qin', 'ming', 'qing', 'silk road', 'gobekli',
-    'fertile crescent', 'jericho', 'catalhoyuk'];
-  if (asiaKw.some(k => t.includes(k))) return 'world_asia';
+  // America keywords
+  const americaKw = ['america', 'aztec', 'inca', 'maya', 'clovis point', 'columbus',
+    'jamestown', 'boston', 'washington', 'united states', 'canada', 'mexico',
+    'pacific rim', 'kelp highway', 'pre-clovis', 'sahul', 'new world',
+    'mayflower', 'declaration of independence', 'civil war', 'lincoln',
+    'panama', 'niagara', 'loihi', 'puerto rico'];
+  if (americaKw.some(k => t.includes(k))) return 'world_america';
 
-  // Cosmic/geological/biological events — use asia as default (neutral)
+  // Asia keywords (default for most ancient/cosmic/Middle East events)
   return 'world_asia';
 }
 

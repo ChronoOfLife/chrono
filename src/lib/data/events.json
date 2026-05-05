@@ -3677,7 +3677,7 @@
     "world": "Carboniferous swamps",
     "link": "https://en.wikipedia.org/wiki/Amphibian",
     "title": "Carboniferous swamps",
-    "row": "world_america"
+    "row": "world_asia"
   },
   {
     "time": -320000000,
@@ -9305,7 +9305,7 @@
     "world": "Pre-Clovis Americas",
     "link": "https://en.wikipedia.org/wiki/Kelp_highway_hypothesis",
     "title": "Pre-Clovis Americas",
-    "row": "world_america"
+    "row": "world_europe"
   },
   {
     "time": -15000,
@@ -9981,7 +9981,7 @@
     "world": "Battle of Thermopylae; Salamis",
     "link": "https://en.wikipedia.org/wiki/Battle_of_Thermopylae",
     "title": "Battle of Thermopylae; Salamis",
-    "row": "world_asia"
+    "row": "world_europe"
   },
   {
     "time": -479,
@@ -10017,7 +10017,7 @@
     "world": "Death of Confucius (China)",
     "link": "https://en.wikipedia.org/wiki/Confucius",
     "title": "Death of Confucius (China)",
-    "row": "world_america"
+    "row": "world_asia"
   },
   {
     "time": -460,
@@ -10225,7 +10225,7 @@
     "world": "Peloponnesian War begins",
     "link": "https://en.wikipedia.org/wiki/Peloponnesian_War",
     "title": "Peloponnesian War begins",
-    "row": "world_asia"
+    "row": "world_europe"
   },
   {
     "time": -413,
@@ -10569,7 +10569,7 @@
     "world": "First Samnite War",
     "link": "https://en.wikipedia.org/wiki/First_Samnite_War",
     "title": "First Samnite War",
-    "row": "world_asia"
+    "row": "world_europe"
   },
   {
     "time": -336,
@@ -11178,7 +11178,7 @@
     "world": "First Punic War begins",
     "link": "https://en.wikipedia.org/wiki/First_Punic_War",
     "title": "First Punic War begins",
-    "row": "world_asia"
+    "row": "world_europe"
   },
   {
     "time": -261,
@@ -11454,7 +11454,7 @@
     "world": "Battle of Cannae",
     "link": "https://en.wikipedia.org/wiki/Battle_of_Cannae",
     "title": "Battle of Cannae",
-    "row": "world_asia"
+    "row": "world_europe"
   },
   {
     "time": -206,
@@ -11689,7 +11689,7 @@
     "world": "Third Punic War begins",
     "link": "https://en.wikipedia.org/wiki/Agnimitra",
     "title": "Third Punic War begins",
-    "row": "world_asia"
+    "row": "world_europe"
   },
   {
     "time": -146,
@@ -11804,7 +11804,7 @@
     "world": "Tiberius Gracchus assassinated",
     "link": "https://en.wikipedia.org/wiki/Tiberius_Gracchus",
     "title": "Tiberius Gracchus assassinated",
-    "row": "world_america"
+    "row": "world_europe"
   },
   {
     "time": -100,
@@ -11856,7 +11856,7 @@
     "world": "Julius Caesar born",
     "link": "https://en.wikipedia.org/wiki/Silk_Road",
     "title": "Julius Caesar born",
-    "row": "world_america"
+    "row": "world_europe"
   },
   {
     "time": -90,
@@ -11943,7 +11943,7 @@
     "world": "Spartacus leads Gladiator revolt",
     "link": "https://en.wikipedia.org/wiki/Kanva_dynasty",
     "title": "Spartacus leads Gladiator revolt",
-    "row": "world_america"
+    "row": "world_europe"
   },
   {
     "time": -60,
@@ -12082,7 +12082,7 @@
     "world": "Battle of Pharsalus (Caesar defeats Pompey)",
     "link": "https://en.wikipedia.org/wiki/Battle_of_Pharsalus",
     "title": "Battle of Pharsalus (Caesar defeats Pompey)",
-    "row": "world_america"
+    "row": "world_europe"
   },
   {
     "time": -44,
@@ -12134,7 +12134,7 @@
     "world": "Assassination of Julius Caesar",
     "link": "https://en.wikipedia.org/wiki/Assassination_of_Julius_Caesar",
     "title": "Assassination of Julius Caesar",
-    "row": "world_america"
+    "row": "world_europe"
   },
   {
     "time": -31,
@@ -12170,7 +12170,7 @@
     "world": "Battle of Actium",
     "link": "https://en.wikipedia.org/wiki/Battle_of_Actium",
     "title": "Battle of Actium",
-    "row": "world_asia"
+    "row": "world_europe"
   },
   {
     "time": -28,
@@ -12246,7 +12246,7 @@
     "world": "Augustus becomes first Roman Emperor",
     "link": "https://en.wikipedia.org/wiki/Augustus",
     "title": "Augustus becomes first Roman Emperor",
-    "row": "world_america"
+    "row": "world_europe"
   },
   {
     "time": 1,
@@ -12337,7 +12337,7 @@
     "world": "Death of Augustus; Tiberius rules",
     "link": "https://en.wikipedia.org/wiki/Tiberius",
     "title": "Death of Augustus; Tiberius rules",
-    "row": "world_america"
+    "row": "world_europe"
   },
   {
     "time": 30,
@@ -12400,7 +12400,7 @@
     "world": "Crucifixion of Jesus of Nazareth",
     "link": "https://en.wikipedia.org/wiki/Crucifixion_of_Jesus",
     "title": "Crucifixion of Jesus of Nazareth",
-    "row": "world_america"
+    "row": "world_europe"
   },
   {
     "time": 41,
@@ -12424,7 +12424,7 @@
     "world": "Caligula assassinated; Claudius ascends",
     "link": "https://en.wikipedia.org/wiki/Caligula",
     "title": "Caligula assassinated; Claudius ascends",
-    "row": "world_america"
+    "row": "world_europe"
   },
   {
     "time": 43,
@@ -12739,7 +12739,7 @@
     "world": "Trajan's Dacian Wars end",
     "link": "https://en.wikipedia.org/wiki/Gautamiputra_Satakarni",
     "title": "Trajan's Dacian Wars end",
-    "row": "world_asia"
+    "row": "world_europe"
   },
   {
     "time": 117,
@@ -12775,7 +12775,7 @@
     "world": "Trajan dies; Hadrian ascends",
     "link": "https://en.wikipedia.org/wiki/Trajan",
     "title": "Trajan dies; Hadrian ascends",
-    "row": "world_asia"
+    "row": "world_europe"
   },
   {
     "time": 127,
@@ -12999,7 +12999,7 @@
     "world": "Death of Marcus Aurelius; Commodus ascends",
     "link": "https://en.wikipedia.org/wiki/Marcus_Aurelius",
     "title": "Death of Marcus Aurelius; Commodus ascends",
-    "row": "world_america"
+    "row": "world_europe"
   },
   {
     "time": 184,
@@ -13062,7 +13062,7 @@
     "world": "Year of the Five Emperors; Septimius Severus wins",
     "link": "https://en.wikipedia.org/wiki/Septimius_Severus",
     "title": "Year of the Five Emperors; Septimius Severus wins",
-    "row": "world_america"
+    "row": "world_asia"
   },
   {
     "time": 212,
@@ -13409,7 +13409,7 @@
     "world": "Constantine dedicates Constantinople",
     "link": "https://en.wikipedia.org/wiki/Constantinople",
     "title": "Constantine dedicates Constantinople",
-    "row": "world_asia"
+    "row": "world_europe"
   },
   {
     "time": 335,
@@ -13481,7 +13481,7 @@
     "world": "Battle of Adrianople",
     "link": "https://en.wikipedia.org/wiki/Battle_of_Adrianople",
     "title": "Battle of Adrianople",
-    "row": "world_asia"
+    "row": "world_europe"
   },
   {
     "time": 380,
@@ -13779,7 +13779,7 @@
     "world": "Battle of the Catalaunian Plains (Attila)",
     "link": "https://en.wikipedia.org/wiki/Skandagupta",
     "title": "Battle of the Catalaunian Plains (Attila)",
-    "row": "world_asia"
+    "row": "world_europe"
   },
   {
     "time": 455,
@@ -13918,7 +13918,7 @@
     "world": "Clovis I defeats Romans at Soissons",
     "link": "https://en.wikipedia.org/wiki/Clovis_I",
     "title": "Clovis I defeats Romans at Soissons",
-    "row": "world_america"
+    "row": "world_europe"
   },
   {
     "time": 499,
@@ -14300,7 +14300,7 @@
     "world": "Pope Gregory I expands Papal power",
     "link": "https://en.wikipedia.org/wiki/Hindu%E2%80%93Arabic_numeral_system",
     "title": "Pope Gregory I expands Papal power",
-    "row": "world_asia"
+    "row": "world_europe"
   },
   {
     "time": 600,
@@ -15972,7 +15972,7 @@
     "world": "First Crusade captures Jerusalem",
     "link": "https://en.wikipedia.org/wiki/First_Crusade",
     "title": "First Crusade captures Jerusalem",
-    "row": "world_america"
+    "row": "world_europe"
   },
   {
     "time": 1113,
@@ -16060,7 +16060,7 @@
     "world": "Second Crusade",
     "link": "https://en.wikipedia.org/wiki/Bh%C4%81skara_II",
     "title": "Second Crusade",
-    "row": "world_america"
+    "row": "world_europe"
   },
   {
     "time": 1187,
@@ -16096,7 +16096,7 @@
     "world": "Saladin captures Jerusalem",
     "link": "https://en.wikipedia.org/wiki/Siege_of_Jerusalem_(1187)",
     "title": "Saladin captures Jerusalem",
-    "row": "world_america"
+    "row": "world_asia"
   },
   {
     "time": 1191,
@@ -16184,7 +16184,7 @@
     "world": "Third Crusade (Saladin vs Richard)",
     "link": "https://en.wikipedia.org/wiki/Battles_of_Tarain",
     "title": "Third Crusade (Saladin vs Richard)",
-    "row": "world_america"
+    "row": "world_europe"
   },
   {
     "time": 1204,
@@ -16220,7 +16220,7 @@
     "world": "Fourth Crusade sacks Constantinople",
     "link": "https://en.wikipedia.org/wiki/Sack_of_Constantinople",
     "title": "Fourth Crusade sacks Constantinople",
-    "row": "world_america"
+    "row": "world_europe"
   },
   {
     "time": 1206,
@@ -18154,7 +18154,7 @@
     "world": "Society of Jesus (Jesuits)",
     "link": "https://en.wikipedia.org/wiki/Sher_Shah_Suri",
     "title": "Society of Jesus (Jesuits)",
-    "row": "world_america"
+    "row": "world_europe"
   },
   {
     "time": 1543,
@@ -18206,7 +18206,7 @@
     "world": "Vesalius maps human anatomy",
     "link": "https://en.wikipedia.org/wiki/De_revolutionibus_orbium_coelestium",
     "title": "Vesalius maps human anatomy",
-    "row": "world_america"
+    "row": "world_asia"
   },
   {
     "time": 1555,
@@ -19375,7 +19375,7 @@
     "world": "English Commonwealth declines",
     "link": "https://en.wikipedia.org/wiki/Aurangzeb",
     "title": "English Commonwealth declines",
-    "row": "world_asia"
+    "row": "world_europe"
   },
   {
     "time": 1662,
@@ -19786,7 +19786,7 @@
     "world": "Glorious Revolution in England",
     "link": "https://en.wikipedia.org/wiki/Glorious_Revolution",
     "title": "Glorious Revolution in England",
-    "row": "world_america"
+    "row": "world_europe"
   },
   {
     "time": 1690,
@@ -20555,7 +20555,7 @@
     "world": "Treaty of Paris (US Independence)",
     "link": "https://en.wikipedia.org/wiki/Pitt%27s_India_Act",
     "title": "Treaty of Paris (US Independence)",
-    "row": "world_america"
+    "row": "world_asia"
   },
   {
     "time": 1789,
@@ -20783,7 +20783,7 @@
     "world": "Continuous electrical current",
     "link": "https://en.wikipedia.org/wiki/Voltaic_pile",
     "title": "Continuous electrical current",
-    "row": "world_america"
+    "row": "world_asia"
   },
   {
     "time": 1803,
@@ -22281,7 +22281,7 @@
     "world": "Annus Mirabilis papers",
     "link": "https://en.wikipedia.org/wiki/Annus_Mirabilis_papers",
     "title": "Annus Mirabilis papers",
-    "row": "world_america"
+    "row": "world_asia"
   },
   {
     "time": 1906,
@@ -22461,7 +22461,7 @@
     "world": "World War I begins; Panama Canal opens",
     "link": "https://en.wikipedia.org/wiki/World_War_I",
     "title": "World War I begins; Panama Canal opens",
-    "row": "world_asia"
+    "row": "world_america"
   },
   {
     "time": 1915,
@@ -23763,7 +23763,7 @@
     "world": "US combat troops enter Vietnam",
     "link": "https://en.wikipedia.org/wiki/Indo-Pakistani_War_of_1965",
     "title": "US combat troops enter Vietnam",
-    "row": "world_america"
+    "row": "world_asia"
   },
   {
     "time": 1966,
@@ -27036,7 +27036,7 @@
     "world": "Terraforming of Venus begins",
     "link": "https://en.wikipedia.org/wiki/Terraforming_of_Venus",
     "title": "Terraforming of Venus begins",
-    "row": "world_america"
+    "row": "world_asia"
   },
   {
     "time": 2900,
@@ -27395,7 +27395,7 @@
     "world": "Niagara Falls erodes away completely",
     "link": "https://en.wikipedia.org/wiki/Niagara_Falls",
     "title": "Niagara Falls erodes away completely",
-    "row": "world_asia"
+    "row": "world_america"
   },
   {
     "time": 100000,

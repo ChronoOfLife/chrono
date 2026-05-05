@@ -1,44 +1,45 @@
 /**
- * Chrono of Life — engine.js v5
- * Neal.fun-inspired: smooth vertical scroll, events float freely,
- * gradient background shifts with era, big time indicator.
+ * Chrono of Life — engine.js v6
+ * Column-based layout: zero overlap, strong era gradients,
+ * scroll-triggered animations, clean event cards.
  */
 
-// ── Row colours & labels ──────────────────────────────────────────────────────
-const ROW = {
-  physical:      { dot:'#4caf50', label:'Physical'  },
-  evolution:     { dot:'#ff9800', label:'Evolution'  },
-  science:       { dot:'#2196f3', label:'Science'    },
-  india:         { dot:'#FF9933', label:'India'      },
-  world_asia:    { dot:'#90caf9', label:'Asia'       },
-  world_europe:  { dot:'#80cbc4', label:'Europe'     },
-  world_america: { dot:'#ce93d8', label:'Americas'   },
-};
+// ── Category definitions ──────────────────────────────────────────────────────
+const CATS = [
+  { key:'physical',      label:'Physical\n& Natural', dot:'#4caf50', col:0 },
+  { key:'evolution',     label:'Evolution\n& Life',   dot:'#ff9800', col:1 },
+  { key:'science',       label:'Science\n& Tech',     dot:'#2196f3', col:2 },
+  { key:'india',         label:'India',               dot:'#FF9933', col:3 },
+  { key:'world_asia',    label:'World\nAsia',         dot:'#90caf9', col:4 },
+  { key:'world_europe',  label:'World\nEurope',       dot:'#80cbc4', col:5 },
+  { key:'world_america', label:'World\nAmericas',     dot:'#ce93d8', col:6 },
+];
+const CAT_MAP = Object.fromEntries(CATS.map(c => [c.key, c]));
 
-// ── Era background gradients (Big Bang → Heat Death) ─────────────────────────
+// ── Era backgrounds — strong, distinct gradients ──────────────────────────────
 const ERA_BKGS = [
-  { t:-13.8e9, bg:'#0a0010' },  // Cosmic — deep purple-black
-  { t:-4.6e9,  bg:'#050a1a' },  // Solar system — dark navy
-  { t:-3.8e9,  bg:'#051a10' },  // Life begins — dark green-black
-  { t:-541e6,  bg:'#071520' },  // Cambrian — deep ocean
-  { t:-252e6,  bg:'#0d1a08' },  // Mesozoic — dark forest
-  { t:-66e6,   bg:'#1a0d05' },  // Cenozoic — warm dark
-  { t:-2.8e6,  bg:'#0d1020' },  // Hominins — cool dark
-  { t:-10000,  bg:'#0a1520' },  // Neolithic — slate
-  { t:-3000,   bg:'#0d1525' },  // Bronze Age — deep blue
-  { t:0,       bg:'#0a1020' },  // Classical — midnight
-  { t:1500,    bg:'#0d1020' },  // Early Modern
-  { t:1760,    bg:'#0a0d18' },  // Industrial — dark steel
-  { t:1900,    bg:'#050710' },  // Modern — near black
-  { t:2026,    bg:'#050a15' },  // Future — deep space
-  { t:1e9,     bg:'#020308' },  // Deep future — void
+  { t:-13.8e9, bg:'#08001a', accent:'#3d0066' },  // Cosmic — deep purple
+  { t:-10e9,   bg:'#050a1a', accent:'#003366' },  // Galactic — dark navy
+  { t:-4.6e9,  bg:'#030d08', accent:'#004d1a' },  // Solar system — dark green
+  { t:-3.8e9,  bg:'#050d15', accent:'#003344' },  // Life begins — teal-black
+  { t:-541e6,  bg:'#040d18', accent:'#001a44' },  // Cambrian — ocean deep
+  { t:-252e6,  bg:'#0a0d04', accent:'#1a2200' },  // Mesozoic — jungle dark
+  { t:-66e6,   bg:'#0d0804', accent:'#2a1500' },  // Cenozoic — warm amber-black
+  { t:-2.8e6,  bg:'#050810', accent:'#0d1a33' },  // Hominins — slate
+  { t:-10000,  bg:'#060a12', accent:'#0d1f33' },  // Neolithic — deep blue
+  { t:-3000,   bg:'#080a14', accent:'#0d1a3d' },  // Classical — midnight blue
+  { t:0,       bg:'#060810', accent:'#0a1428' },  // CE era
+  { t:1500,    bg:'#060810', accent:'#0a1020' },  // Early Modern
+  { t:1760,    bg:'#050710', accent:'#080f1a' },  // Industrial
+  { t:1900,    bg:'#040608', accent:'#060c14' },  // Modern — near black
+  { t:2026,    bg:'#030508', accent:'#050a14' },  // Future
 ];
 
-function getBg(t) {
+function getEraBg(t) {
   for (let i = ERA_BKGS.length-1; i >= 0; i--) {
-    if (t >= ERA_BKGS[i].t) return ERA_BKGS[i].bg;
+    if (t >= ERA_BKGS[i].t) return ERA_BKGS[i];
   }
-  return '#05070f';
+  return ERA_BKGS[0];
 }
 
 // ── Time formatting ───────────────────────────────────────────────────────────
@@ -52,12 +53,13 @@ function fmtTime(t) {
   return t.toExponential(2) + ' Years';
 }
 
-function fmtBigBang(t) {
-  const s = 13.8e9 + t;
-  if (s <= 0) return 'At the Big Bang';
-  if (s >= 1e9) return (s/1e9).toPrecision(3) + 'B yrs after Big Bang';
-  if (s >= 1e6) return (s/1e6).toPrecision(3) + 'M yrs after Big Bang';
-  return Math.round(s) + ' yrs after Big Bang';
+function fmtShort(t) {
+  if (t === 0) return '0 CE';
+  const abs = Math.abs(t);
+  if (abs >= 1e9)  return (abs/1e9).toPrecision(3) + 'B yrs ' + (t<0?'ago':'from now');
+  if (abs >= 1e6)  return (abs/1e6).toPrecision(3) + 'M yrs ' + (t<0?'ago':'from now');
+  if (abs >= 1000) return t < 0 ? Math.round(abs)+' BCE' : Math.round(abs)+' CE';
+  return t < 0 ? Math.round(abs)+' BCE' : Math.round(abs)+' CE';
 }
 
 const AGES = [
@@ -79,29 +81,19 @@ function getAge(t) {
   return '—';
 }
 
-// ── State ─────────────────────────────────────────────────────────────────────
-let allEvents   = [];
-let indiaFilter = false;
-
-// ── Layout: group events into time buckets ────────────────────────────────────
-// Each bucket becomes one "row" in the scroll world.
-// Bucket height = 120px. Events float at random-ish X positions within the row.
-
-const BUCKET_H = 140;  // px height per time bucket
-
-// Bucket sizes by time range (years)
+// ── Bucket sizes — larger = fewer events per section ─────────────────────────
 const BUCKET_SIZES = [
-  [-13.8e9, -1e9,    500e6 ],
-  [-1e9,    -100e6,  50e6  ],
-  [-100e6,  -10e6,   5e6   ],
-  [-10e6,   -100e3,  500e3 ],
-  [-100e3,  -3000,   3000  ],
-  [-3000,   0,       200   ],
-  [0,       1500,    200   ],
-  [1500,    2030,    15    ],
-  [2030,    1e6,     100   ],
-  [1e6,     1e9,     1e6   ],
-  [1e9,     1e100,   1e9   ],
+  [-13.8e9, -1e9,    1e9   ],  // 1B yr buckets (cosmic)
+  [-1e9,    -100e6,  100e6 ],  // 100M yr buckets
+  [-100e6,  -10e6,   10e6  ],  // 10M yr buckets
+  [-10e6,   -100e3,  1e6   ],  // 1M yr buckets
+  [-100e3,  -3000,   5000  ],  // 5000 yr buckets
+  [-3000,   0,       500   ],  // 500 yr buckets
+  [0,       1500,    500   ],  // 500 yr buckets
+  [1500,    2030,    25    ],  // 25 yr buckets (dense modern era)
+  [2030,    1e6,     200   ],  // 200 yr buckets
+  [1e6,     1e9,     10e6  ],  // 10M yr buckets
+  [1e9,     1e100,   1e9   ],  // 1B yr buckets
 ];
 
 function getBucketSize(t) {
@@ -124,160 +116,200 @@ function groupIntoBuckets(events) {
     .map(([t,evs]) => ({ t, evs }));
 }
 
-// ── Age change detection ──────────────────────────────────────────────────────
-function getAgeBoundaries(buckets) {
-  const boundaries = new Set();
-  let lastAge = null;
-  for (const b of buckets) {
-    const age = getAge(b.t);
-    if (age !== lastAge) {
-      boundaries.add(b.t);
-      lastAge = age;
-    }
-  }
-  return boundaries;
-}
+// ── State ─────────────────────────────────────────────────────────────────────
+let allEvents   = [];
+let indiaFilter = false;
 
-// ── Build the DOM ─────────────────────────────────────────────────────────────
+// ── Build DOM ─────────────────────────────────────────────────────────────────
 function buildWorld(events) {
-  const world = document.getElementById('scroll-world');
+  const world = document.getElementById('world');
   world.innerHTML = '';
 
   const buckets = groupIntoBuckets(events);
-  const ageBounds = getAgeBoundaries(buckets);
 
-  // Horizontal positions for each row key (0-1 fraction of available width)
-  // Stagger so different categories appear at different X positions
-  const COL_X = {
-    physical:      [0.05, 0.25, 0.45],
-    evolution:     [0.15, 0.35, 0.55],
-    science:       [0.60, 0.75, 0.88],
-    india:         [0.10, 0.30, 0.50, 0.70],
-    world_asia:    [0.20, 0.40, 0.60, 0.80],
-    world_europe:  [0.55, 0.72, 0.85],
-    world_america: [0.08, 0.28, 0.48, 0.68],
-  };
-
-  // Track X position index per row
-  const xIdx = {};
-  for (const k of Object.keys(COL_X)) xIdx[k] = 0;
-
+  // Group buckets into eras (by age boundary)
+  const eras = [];
+  let currentEra = null;
   let lastAge = null;
 
   for (const bucket of buckets) {
-    const { t, evs } = bucket;
-    const age = getAge(t);
-
-    // Age boundary banner
-    if (ageBounds.has(t) && age !== lastAge) {
+    const age = getAge(bucket.t);
+    if (age !== lastAge) {
       lastAge = age;
-      const banner = document.createElement('div');
-      banner.className = 'age-banner';
-      banner.dataset.t = t;
-      banner.innerHTML = `<span class="age-banner-text">${age} · ${fmtTime(t)}</span>`;
-      world.appendChild(banner);
+      currentEra = { age, t: bucket.t, buckets: [] };
+      eras.push(currentEra);
+    }
+    currentEra.buckets.push(bucket);
+  }
+
+  // Render each era
+  for (const era of eras) {
+    const eraBg = getEraBg(era.t);
+
+    const eraEl = document.createElement('div');
+    eraEl.className = 'era';
+    eraEl.dataset.t = era.t;
+    eraEl.style.background = `linear-gradient(180deg, ${eraBg.bg} 0%, ${eraBg.accent}22 50%, ${eraBg.bg} 100%)`;
+
+    // Sticky era label
+    const label = document.createElement('div');
+    label.className = 'era-label';
+    label.innerHTML = `
+      <div class="era-label-inner">
+        <span class="era-label-time">${fmtShort(era.t)}</span>
+        <span class="era-label-name">${era.age}</span>
+      </div>`;
+    eraEl.appendChild(label);
+
+    // Column headers (only for first era)
+    if (era === eras[0]) {
+      const grid = document.createElement('div');
+      grid.className = 'col-grid';
+      CATS.forEach(cat => {
+        const hdr = document.createElement('div');
+        hdr.className = 'col-hdr';
+        hdr.style.color = cat.dot;
+        hdr.textContent = cat.label.replace('\n', ' ');
+        grid.appendChild(hdr);
+      });
+      eraEl.appendChild(grid);
     }
 
-    // Events area for this bucket
-    const area = document.createElement('div');
-    area.className = 'events-area';
-    area.dataset.t = t;
-    area.style.height = Math.max(BUCKET_H, evs.length * 28 + 40) + 'px';
-    area.style.background = getBg(t);
+    // Render buckets within this era
+    for (const bucket of era.buckets) {
+      const grid = document.createElement('div');
+      grid.className = 'col-grid';
 
-    // Place each event
-    evs.forEach((ev, i) => {
-      const r = ROW[ev.row];
-      if (!r) return;
+      // Check if this bucket has events in any column
+      const hasMilestone = era.buckets.indexOf(bucket) === 0 && era !== eras[0];
 
-      const card = document.createElement('div');
-      card.className = 'ev-card' + (indiaFilter && !ev.india ? ' dimmed' : '');
-      card.dataset.row = ev.row;
-      card.dataset.india = ev.india ? '1' : '';
-
-      // X position: use column positions, cycling through them
-      const positions = COL_X[ev.row] || [0.1, 0.4, 0.7];
-      const xFrac = positions[xIdx[ev.row] % positions.length];
-      xIdx[ev.row]++;
-
-      // Y position: spread vertically within the area
-      const yFrac = 0.1 + (i / Math.max(evs.length, 1)) * 0.75;
-
-      card.style.left = (xFrac * 100) + '%';
-      card.style.top  = (yFrac * 100) + '%';
-
-      // Row badge
-      const badge = document.createElement('div');
-      badge.className = 'ev-row-badge';
-      badge.style.color = r.dot;
-      badge.textContent = r.label;
-
-      // Title line
-      const titleLine = document.createElement('div');
-      titleLine.style.display = 'flex';
-      titleLine.style.alignItems = 'flex-start';
-      titleLine.style.gap = '5px';
-
-      const dot = document.createElement('span');
-      dot.className = 'ev-dot';
-      dot.style.background = r.dot;
-      dot.style.marginTop = '3px';
-
-      const title = document.createElement('span');
-      title.className = 'ev-title';
-      title.textContent = ev.title;
-
-      titleLine.appendChild(dot);
-      titleLine.appendChild(title);
-
-      card.appendChild(badge);
-      card.appendChild(titleLine);
-
-      // Sub-text
-      const sub = ev.india && ev.row !== 'india' ? ev.india
-                : ev.world && !ev.row.startsWith('world') ? ev.world
-                : ev.age ? ev.age : '';
-      if (sub) {
-        const subEl = document.createElement('div');
-        subEl.className = 'ev-sub';
-        subEl.textContent = sub;
-        card.appendChild(subEl);
+      if (hasMilestone) {
+        const ms = document.createElement('div');
+        ms.className = 'milestone';
+        ms.innerHTML = `
+          <div class="milestone-line"></div>
+          <div class="milestone-text">${era.age} · ${fmtShort(bucket.t)}</div>
+          <div class="milestone-line"></div>`;
+        grid.appendChild(ms);
       }
 
-      card.addEventListener('click', e => { e.stopPropagation(); showPanel(ev); });
-      area.appendChild(card);
-    });
+      // Create 7 column cells
+      const cells = CATS.map(() => {
+        const cell = document.createElement('div');
+        cell.style.minHeight = '8px';
+        return cell;
+      });
 
-    world.appendChild(area);
+      // Place events into their column cells
+      let hasAnyEvent = false;
+      for (const ev of bucket.evs) {
+        const cat = CAT_MAP[ev.row];
+        if (!cat) continue;
+        hasAnyEvent = true;
+
+        const card = makeCard(ev, cat);
+        cells[cat.col].appendChild(card);
+      }
+
+      if (hasAnyEvent) {
+        cells.forEach(cell => grid.appendChild(cell));
+        eraEl.appendChild(grid);
+      }
+    }
+
+    world.appendChild(eraEl);
   }
 
   // End cap
   const end = document.createElement('div');
-  end.style.cssText = 'text-align:center;padding:80px 20px;color:rgba(255,255,255,.2);font-size:14px;';
-  end.innerHTML = '<div style="font-size:32px;margin-bottom:12px">∞</div>Heat Death of the Universe<br><small>10<sup>106</sup> years from now</small>';
+  end.id = 'endcap';
+  end.innerHTML = `
+    <div class="big">∞</div>
+    <strong>Heat Death of the Universe</strong><br>
+    <small>10<sup>106</sup> years from now — maximum entropy</small>`;
   world.appendChild(end);
+
+  // Set up intersection observer for scroll animations
+  setupAnimations();
 }
 
-// ── Scroll-driven HUD update ──────────────────────────────────────────────────
+function makeCard(ev, cat) {
+  const card = document.createElement('div');
+  card.className = 'ev';
+  card.dataset.row = ev.row;
+  card.dataset.india = ev.india ? '1' : '';
+  card.style.borderLeftColor = cat.dot;
+  if (indiaFilter && !ev.india) card.classList.add('dimmed');
+
+  // Stagger animation delay based on column
+  card.style.animationDelay = (cat.col * 40) + 'ms';
+
+  const titleLine = document.createElement('div');
+  const dot = document.createElement('span');
+  dot.className = 'ev-dot';
+  dot.style.background = cat.dot;
+  const title = document.createElement('span');
+  title.className = 'ev-title';
+  title.textContent = ev.title;
+  titleLine.appendChild(dot);
+  titleLine.appendChild(title);
+  card.appendChild(titleLine);
+
+  // Sub-text: show india context for non-india rows, or world context
+  // Never duplicate the title
+  let sub = '';
+  if (ev.row !== 'india' && ev.india && ev.india !== ev.title) {
+    sub = ev.india;
+  } else if (!ev.row.startsWith('world') && ev.world && ev.world !== ev.title) {
+    sub = ev.world;
+  } else if (ev.age && ev.age !== ev.title) {
+    sub = ev.age;
+  }
+
+  if (sub) {
+    const subEl = document.createElement('div');
+    subEl.className = 'ev-sub';
+    subEl.textContent = sub;
+    card.appendChild(subEl);
+  }
+
+  card.addEventListener('click', e => { e.stopPropagation(); showPanel(ev); });
+  return card;
+}
+
+// ── Intersection observer for fade-in animations ──────────────────────────────
+function setupAnimations() {
+  const observer = new IntersectionObserver(entries => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        entry.target.style.animationPlayState = 'running';
+        observer.unobserve(entry.target);
+      }
+    });
+  }, { rootMargin: '0px 0px -50px 0px' });
+
+  document.querySelectorAll('.ev').forEach(el => {
+    el.style.animationPlayState = 'paused';
+    observer.observe(el);
+  });
+}
+
+// ── Scroll-driven HUD ─────────────────────────────────────────────────────────
 function onScroll() {
-  // Find current time from visible area
-  const areas = document.querySelectorAll('.events-area[data-t]');
-  const mid = window.scrollY + window.innerHeight / 2;
+  const eras = document.querySelectorAll('.era[data-t]');
+  const mid = window.scrollY + 80;
   let currentT = -13.8e9;
 
-  for (const area of areas) {
-    const top = area.offsetTop;
-    if (top <= mid) currentT = parseFloat(area.dataset.t);
+  for (const era of eras) {
+    if (era.offsetTop <= mid) currentT = parseFloat(era.dataset.t);
     else break;
   }
 
   document.getElementById('hud-time').textContent = fmtTime(currentT);
   document.getElementById('hud-age').textContent  = getAge(currentT);
 
-  // Progress bar
   const total = document.body.scrollHeight - window.innerHeight;
-  const pct = total > 0 ? window.scrollY / total * 100 : 0;
-  document.getElementById('prog').style.width = pct + '%';
+  document.getElementById('prog').style.width = (total > 0 ? window.scrollY/total*100 : 0) + '%';
 }
 
 // ── Detail panel ──────────────────────────────────────────────────────────────
@@ -286,40 +318,34 @@ document.getElementById('pc').addEventListener('click', () => {
 });
 document.addEventListener('click', e => {
   const p = document.getElementById('panel');
-  if (p.style.display === 'block' && !p.contains(e.target)) {
-    p.style.display = 'none';
-  }
+  if (p.style.display === 'block' && !p.contains(e.target)) p.style.display = 'none';
 });
 
 function showPanel(ev) {
-  const p  = document.getElementById('panel');
-  const pt = document.getElementById('pt');
-  const pb = document.getElementById('pb');
+  const p = document.getElementById('panel');
+  document.getElementById('pt').textContent    = ev.title;
+  document.getElementById('ptime').textContent = fmtTime(ev.time) + ' · ' + getAge(ev.time);
+  document.getElementById('pb').innerHTML      = '<em style="color:#555">Loading…</em>';
+  p.style.display = 'block';
+
   const pl = document.getElementById('pl');
-  const ptime = document.getElementById('ptime');
-
-  pt.textContent   = ev.title;
-  ptime.textContent = fmtTime(ev.time) + ' · ' + getAge(ev.time);
-  pb.innerHTML     = '<em style="color:#555">Loading…</em>';
-  p.style.display  = 'block';
-
   if (ev.link) {
     pl.href = ev.link; pl.style.display = 'block';
     const slug = ev.link.split('/wiki/').pop() || ev.title.replace(/ /g,'_');
     fetch('https://en.wikipedia.org/api/rest_v1/page/summary/' + encodeURIComponent(slug))
       .then(r => r.ok ? r.json() : null)
       .then(d => {
-        if (!d) { pb.innerHTML = fallback(ev); return; }
+        if (!d) { document.getElementById('pb').innerHTML = fallback(ev); return; }
         let h = '';
         if (d.thumbnail) h += `<img src="${d.thumbnail.source}" alt="">`;
         h += `<p>${d.extract||''}</p>`;
         if (ev.india) h += `<p class="in"><strong>India:</strong> ${ev.india}</p>`;
-        pb.innerHTML = h;
+        document.getElementById('pb').innerHTML = h;
       })
-      .catch(() => { pb.innerHTML = fallback(ev); });
+      .catch(() => { document.getElementById('pb').innerHTML = fallback(ev); });
   } else {
     pl.style.display = 'none';
-    pb.innerHTML = fallback(ev);
+    document.getElementById('pb').innerHTML = fallback(ev);
   }
 }
 
@@ -334,21 +360,18 @@ function fallback(ev) {
 document.getElementById('btn-india').addEventListener('click', function() {
   indiaFilter = !indiaFilter;
   this.classList.toggle('on', indiaFilter);
-  document.querySelectorAll('.ev-card').forEach(c => {
+  document.querySelectorAll('.ev').forEach(c => {
     c.classList.toggle('dimmed', indiaFilter && !c.dataset.india);
   });
 });
-
 document.getElementById('btn-top').addEventListener('click', () => {
   window.scrollTo({ top: 0, behavior: 'smooth' });
 });
-
 window.addEventListener('keydown', e => {
   if (e.key === 'Escape') document.getElementById('panel').style.display = 'none';
   if (e.key === 'Home')   window.scrollTo({ top: 0, behavior: 'smooth' });
   if (e.key === 'End')    window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
 });
-
 window.addEventListener('scroll', onScroll, { passive: true });
 
 // ── Load data ─────────────────────────────────────────────────────────────────
